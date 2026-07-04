@@ -102,8 +102,13 @@ async function search(q) {
 const EDITABLE_KINDS = new Set(["text", "long_text", "number", "date", "url", "boolean", "single_select"]);
 const valFirst = (f) => { const v = ((f && f.values) || []).find((x) => x.value !== "" && x.value != null); return v ? v.value : ""; };
 
-async function selectContact(id, li) {
+function selectContact(id) {
+  nav(`contacts/${encodeURIComponent(id)}`);   // a history entry — the browser Back button works
+}
+
+async function showContact(id) {              // the renderer behind #/contacts/<id> (called by route)
   document.querySelectorAll(".row.active").forEach((r) => r.classList.remove("active"));
+  const li = els.rows.querySelector(`.row[data-id="${cssEsc(id)}"]`);
   if (li) li.classList.add("active");
   renderContactRead(await api(`/api/contact/${encodeURIComponent(id)}`));
 }
@@ -591,17 +596,21 @@ async function loadGroups() {
 
   body.querySelectorAll("[data-open]").forEach((r) => r.addEventListener("click", () => openGroupDetail(r.dataset.open)));
   body.querySelectorAll("[data-tag]").forEach((r) => r.addEventListener("click", () => {
-    show("contacts"); els.q.value = r.dataset.tag; search(r.dataset.tag);   // the tag search box path
+    nav("contacts"); els.q.value = r.dataset.tag; search(r.dataset.tag);   // the tag search box path
   }));
   const mt = $("#groups-managetags");
   if (mt) mt.addEventListener("click", () => openTagModal("tags", loadGroups));
 }
 
-async function openGroupDetail(gid) {
+function openGroupDetail(gid) {
+  nav(`groups/${encodeURIComponent(gid)}`);    // a history entry — Back returns to the groups list
+}
+
+async function renderGroupDetail(gid) {       // the renderer behind #/groups/<id> (called by route)
   const body = $("#groups-body");
   let g;
   try { g = await api(`/api/groups/${encodeURIComponent(gid)}`); }
-  catch (e) { alert("Couldn't open that group — " + e.message); loadGroups(); return; }
+  catch (e) { alert("Couldn't open that group — " + e.message); nav("groups"); return; }
 
   const memberRow = (m) =>
     `<div class="fielddef memberrow"><div class="fdbody" data-goto="${esc(m.id)}">` +
@@ -624,22 +633,22 @@ async function openGroupDetail(gid) {
     `<p class="hint" style="margin-top:14px">↺ Membership changes are reversible (Undo), and never touch your imported records.</p>` +
     `</div>`;
 
-  $("#grp-back").addEventListener("click", loadGroups);
-  $("#grp-edit").addEventListener("click", () => openGroupModal(g, () => openGroupDetail(gid)));
+  $("#grp-back").addEventListener("click", () => nav("groups"));
+  $("#grp-edit").addEventListener("click", () => openGroupModal(g, () => renderGroupDetail(gid)));
   $("#grp-delete").addEventListener("click", async () => {
     if (!confirm(`Delete the group “${g.name}”? Its contacts are untouched — only the group goes away. You can Undo this.`)) return;
     try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/delete`, {}); }
     catch (e) { alert("Delete failed: " + e.message); return; }
-    loadGroups();
+    nav("groups");
   });
   body.querySelectorAll("[data-goto]").forEach((r) => r.addEventListener("click", async () => {
-    show("contacts"); await browse(); selectContact(r.dataset.goto);
+    await browse(); selectContact(r.dataset.goto);
   }));
   body.querySelectorAll("[data-unmember]").forEach((b) => b.addEventListener("click", async (e) => {
     e.stopPropagation();
     try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/members`, { remove: [b.dataset.unmember] }); }
     catch (err) { alert("Remove failed: " + err.message); return; }
-    openGroupDetail(gid);
+    renderGroupDetail(gid);
   }));
 
   const q = $("#grp-q"), res = $("#grp-res");
@@ -659,7 +668,7 @@ async function openGroupDetail(gid) {
     res.querySelectorAll("[data-member]").forEach((b) => b.addEventListener("click", async () => {
       try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/members`, { add: [b.dataset.member] }); }
       catch (err) { alert("Add failed: " + err.message); return; }
-      openGroupDetail(gid);
+      renderGroupDetail(gid);
     }));
   }, 160));
 }
@@ -704,7 +713,7 @@ function groupChipsHTML(c) {
 function wireGroupChips(c) {
   els.detail.querySelectorAll("[data-gopen]").forEach((ch) => ch.addEventListener("click", (e) => {
     if (e.target.closest("[data-gremove]")) return;
-    show("groups"); openGroupDetail(ch.dataset.gopen);
+    openGroupDetail(ch.dataset.gopen);
   }));
   els.detail.querySelectorAll("[data-gremove]").forEach((x) => x.addEventListener("click", async () => {
     try { await postJSON(`/api/groups/${encodeURIComponent(x.dataset.gremove)}/members`, { remove: [c.id] }); }
@@ -1415,20 +1424,43 @@ function initDataView() {
   $("#exp-raw").addEventListener("click", () => downloadExport("/api/export?raw=1", `prm-backup-${date}.json`));
 }
 
-// ---- nav / reset ----
+// ---- nav / routing / reset ----
+// Hash-based routing so the browser Back/Forward buttons navigate the app: every view switch,
+// contact selection (#/contacts/<id>), and group detail (#/groups/<id>) is a history entry. The
+// session key lives in the query string / cookie, so the hash never touches it. Wizard-internal
+// steps (bulk approve, import staging) and modals are deliberately NOT history entries.
 function show(view) {
   document.querySelectorAll(".navitem[data-view]").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
   document.querySelectorAll(".view").forEach((v) => v.classList.toggle("show", v.id === view));
 }
+
+const ROUTE_VIEWS = ["contacts", "duplicates", "groups", "schema", "data", "access"];
+const VIEW_LOADERS = { duplicates: loadDuplicates, groups: loadGroups, schema: loadSchema,
+                       data: loadData, access: loadAccessView };
+
+function nav(path) {
+  const h = "#/" + path;
+  if (location.hash === h) route();           // re-navigating to the current place still refreshes it
+  else location.hash = h;                     // -> hashchange -> route() (a real history entry)
+}
+
+function route() {
+  const parts = location.hash.replace(/^#\/?/, "").split("/").map((p) => { try { return decodeURIComponent(p); } catch { return p; } });
+  const view = ROUTE_VIEWS.includes(parts[0]) ? parts[0] : "contacts";
+  show(view);
+  if (view === "contacts") {
+    if (parts[1]) { showContact(parts[1]); return; }
+    document.querySelectorAll(".row.active").forEach((r) => r.classList.remove("active"));
+    els.detail.innerHTML = `<p class="ph">Select a contact to see its fields and where each value came from.</p>`;
+    return;
+  }
+  if (view === "groups" && parts[1]) { renderGroupDetail(parts[1]); return; }
+  VIEW_LOADERS[view]();
+}
+
+window.addEventListener("hashchange", route);
 document.querySelectorAll(".navitem[data-view]").forEach((n) =>
-  n.addEventListener("click", () => {
-    show(n.dataset.view);
-    if (n.dataset.view === "duplicates") loadDuplicates();   // re-enter at the fresh home, not a stale step
-    if (n.dataset.view === "groups") loadGroups();
-    if (n.dataset.view === "schema") loadSchema();
-    if (n.dataset.view === "data") loadData();
-    if (n.dataset.view === "access") loadAccessView();
-  }));
+  n.addEventListener("click", () => nav(n.dataset.view)));
 const schemaNew = $("#schema-new");
 if (schemaNew) schemaNew.addEventListener("click", () => openFieldModal(null, loadSchema));
 const groupNew = $("#group-new");
@@ -1457,9 +1489,7 @@ els.q.addEventListener("input", debounce((e) => {
 
 els.reset.addEventListener("click", () => {        // AC-6: always-reachable escape
   els.q.value = "";
-  document.querySelectorAll(".row.active").forEach((r) => r.classList.remove("active"));
-  els.detail.innerHTML = `<p class="ph">Select a contact to see its fields and where each value came from.</p>`;
-  show("contacts");
+  nav("contacts");                                  // route() clears the selection + detail
   browse();
 });
 
@@ -1470,7 +1500,7 @@ function emptyState(msg) {
     `<button class="btn primary" id="go-import">Import some contacts</button></div>`;
   els.listhead.textContent = "All contacts";
   const b = $("#go-import");
-  if (b) b.addEventListener("click", () => { show("data"); loadData(); });
+  if (b) b.addEventListener("click", () => nav("data"));
 }
 
 async function refreshStats() {
@@ -1562,7 +1592,8 @@ const bootWatchdog = setTimeout(() => {
       return;
     }
     await browse();
-    loadDuplicates();
+    loadDuplicates();                                        // the nav badge; route() below may re-load a view
+    if (location.hash) route();                              // honor a deep link / a restored session hash
   } catch (err) {
     booted = true; clearTimeout(bootWatchdog);
     emptyState(`Couldn’t reach the workspace API (${esc(err.message)}). Open <a href="?diag">?diag</a> for diagnostics.`);
@@ -1633,7 +1664,7 @@ function renderBanners() {
       `</span></div>`;
   }).join("");
   host.querySelectorAll("[data-dismiss]").forEach((x) => x.addEventListener("click", () => setDismissed(x.dataset.dismiss)));
-  host.querySelectorAll("[data-access]").forEach((x) => x.addEventListener("click", () => { show("access"); loadAccessView(); }));
+  host.querySelectorAll("[data-access]").forEach((x) => x.addEventListener("click", () => nav("access")));
 }
 
 async function loadDisclosure() {
