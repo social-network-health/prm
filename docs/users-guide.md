@@ -14,7 +14,8 @@ data never leaves your device.
 > (over a local MCP server) — it can only *propose*; you still review and approve each one in the workspace. You can also **re-import an updated export** and preview
 > exactly what changes (`just reimport`), and **export your contacts** — a portable vCard to move them to
 > another app, or a lossless `--raw` backup you can re-import (`just export`). Building on that, you can now
-> **edit contacts, add private notes, set a contact photo, tag them from a vocabulary you manage**, and
+> **edit contacts, add private notes, set a contact photo, tag them from a vocabulary you manage**,
+> **collect contacts into groups you define** (with a browse view for your tags), and
 > **define your own custom relationship fields** — all private, reversible, and layered over your imports
 > (never changing them). You can also **import and export right in the workspace** now — drag in a file or
 > folder and preview before anything is saved, or download a vCard or backup — no terminal needed.
@@ -44,6 +45,10 @@ data never leaves your device.
 | **Find & merge duplicate contacts** in the workspace — one at a time **or in bulk by group**, reversible | ✅ works |
 | **Edit a contact** in the workspace — fix a name/org, add private **notes** — reversible, never touches your imported records | ✅ works |
 | **Tag** contacts from a managed vocabulary (name + description), search by tag — private, never leaves the device | ✅ works |
+| **Browse your tags** — every tag with its description + contact count, click through to its contacts | ✅ works |
+| **Group** contacts — create any number of private groups, add/remove members from a contact or inside the group; survives merges, reversible | ✅ works |
+| **Operate on a group** — filter Contacts by group, bulk-add from the list, export one group | ⏳ next |
+| An AI can **read your groups** (consent-gated, read-only MCP tools — it can never create or change one) | ⏳ next |
 | **Define your own fields** — a typed custom schema (text, date, select, …) in the workspace; they appear on every contact | ✅ works |
 | **Contact photos** — imported photos (incl. **Google Takeout**) show as the avatar; upload your own, or **match a folder of loose photos** one-by-one with a suggested contact — private, reversible | ✅ works |
 | Inspect an export without saving anything (`--dry-run`) | ✅ works |
@@ -383,6 +388,18 @@ in. You can edit or remove your own fields (removing one drops its values, but i
 **Undo**); the built-ins can't be removed. The schema is authored **only here in the workspace** — an
 AI can never invent or change your fields (INV-3). *(Per-field AI-write controls and a shareable-data
 review surface are columns on each field today; their full enforcement lands in a later increment.)*
+
+**Groups** is where you collect contacts into sets you define — "emergency contacts", "book club",
+"holiday card list". Hit **+ New group** (a name plus an optional note), open a group to **see and edit
+its members** — remove one, or **add contacts by searching** right there — and on any contact's page the
+**Groups chips** show where it belongs, with an **＋ Add to group** control (which can also create a new
+group on the spot). Groups are **private relationship data**: they live in your private store on this
+device, an AI can never create or change one, and every change is reversible (**Undo**) and survives both
+**merges** (a merged contact keeps its memberships) and **re-imports**. Deleting a group never touches
+the contacts in it. The same view hosts a **Tags browse**: every tag in your vocabulary with its
+description and how many contacts carry it — click one to see those contacts, or jump into *Manage
+tags…* from there. *(Coming next: filter the Contacts list by group, bulk-add many contacts at once, and
+export a single group as a vCard.)*
 
 (To stop the server, use `just stop` — or `Ctrl-C` in the terminal running it. If a *crashed* run left
 the port stuck, `just port` force-frees it.)

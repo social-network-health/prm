@@ -20,11 +20,11 @@ from pathlib import Path
 # multi-image lands (R7). Tags is a multi_select, so it is covered here.
 _MULTI_KINDS = {"multi_select"}
 
-SCHEMA_VERSION = 3
-# 0 = a fresh store; 1 = a v0.1 store (pre relationship-schema); 2 = a v0.2 store (pre observations) →
-# bring each up to the current schema. Every CREATE is IF NOT EXISTS + seeds are INSERT OR IGNORE, so the
-# whole script re-runs idempotently and a store only gains the tables it lacks.
-_MIGRATABLE_FROM = {0, 1, 2}
+SCHEMA_VERSION = 4
+# 0 = a fresh store; 1 = a v0.1 store (pre relationship-schema); 2 = a v0.2 store (pre observations);
+# 3 = pre groups → bring each up to the current schema. Every CREATE is IF NOT EXISTS + seeds are
+# INSERT OR IGNORE, so the whole script re-runs idempotently and a store only gains the tables it lacks.
+_MIGRATABLE_FROM = {0, 1, 2, 3}
 _SCHEMA_SQL = (Path(__file__).resolve().parent / "schema" / "relationships.sql").read_text(encoding="utf-8")
 
 # Default reconcile order: user-curated address books (Apple/Google) outrank scraped professional /
@@ -184,6 +184,14 @@ def apply_operations(db_path, operations) -> list:
                     cur.execute("INSERT OR IGNORE INTO contacts(contact_id, created_at) VALUES (?, ?)", (into, _now_iso()))
                     for srid in op["source_record_ids"]:
                         cur.execute("UPDATE identity_map SET contact_id = ? WHERE source_record_id = ?", (into, srid))
+                    # Re-point the now-orphaned contacts' group memberships at the survivor BEFORE the
+                    # contacts delete — its FK cascade would otherwise silently drop them (a group must
+                    # survive dedup, plans/groups-and-tags.md). INSERT OR IGNORE collapses a group that
+                    # held both halves; the losing rows then go away with the cascade.
+                    cur.execute(
+                        "INSERT OR IGNORE INTO group_members(group_id, contact_id, added_at) "
+                        "SELECT group_id, ?, added_at FROM group_members "
+                        "WHERE contact_id NOT IN (SELECT contact_id FROM identity_map)", (into,))
                     cur.execute("DELETE FROM contacts WHERE contact_id NOT IN (SELECT contact_id FROM identity_map)")
                 elif kind == "resolve_field":
                     cur.execute(
@@ -590,6 +598,21 @@ def shareable_field_values_for(db_path, contact_id: str) -> list:
     finally:
         con.close()
     return [_fv_row(r) for r in rows]
+
+
+def value_counts(db_path, field_id: str) -> dict:
+    """{value: distinct-contact count} for one field's values — the tag-browse counts
+    (``plans/groups-and-tags.md``). Read-only; {} when no store."""
+    if not Path(db_path).exists():
+        return {}
+    con = connect(db_path, read_only=True)
+    try:
+        rows = con.execute(
+            "SELECT value, count(DISTINCT contact_id) FROM field_values "
+            "WHERE field_id = ? AND value IS NOT NULL GROUP BY value", (field_id,)).fetchall()
+    finally:
+        con.close()
+    return dict(rows)
 
 
 def _like_escape(s: str) -> str:

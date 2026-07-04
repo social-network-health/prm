@@ -382,6 +382,20 @@ td .hint{font-size:11.5px;color:var(--faint);margin-top:3px;}
 .fmgrow .tagrow .oname{width:130px;flex:none;}
 .fmgrow .tagrow .odesc{flex:1;min-width:0;}
 
+/* ---- groups + tags browse (plans/groups-and-tags.md) ---- */
+.groupswrap{max-width:760px;padding:24px 34px 60px;}
+.fielddef.grouprow,.fielddef.tagbrow{cursor:pointer;}
+.fielddef.grouprow:hover,.fielddef.tagbrow:hover{border-color:var(--accent);}
+.groupdet .memberrow .fdbody{cursor:pointer;}
+#grp-q,#ag-new,#gm-name,#gm-note{font:inherit;font-size:13.5px;padding:8px 12px;border:1px solid var(--line);border-radius:9px;background:var(--panel);color:var(--ink);}
+#gm-name,#gm-note{width:100%;}
+#grp-q:focus,#ag-new:focus,#gm-name:focus,#gm-note:focus{outline:none;border-color:var(--accent);box-shadow:0 0 0 3px var(--accent-w);}
+#grp-res{margin-top:8px;max-width:420px;}
+.tagchip.ingroup{cursor:pointer;display:inline-flex;align-items:center;gap:5px;}
+.tagchip .chipx{border:none;background:none;font:inherit;font-size:10px;color:var(--faint);cursor:pointer;padding:0 1px;}
+.tagchip .chipx:hover{color:var(--danger);}
+.groupchips{margin-bottom:6px;}
+
 /* ---- R7c guided photo matcher ---- */
 .matchoverlay{position:fixed;inset:0;z-index:50;background:rgba(40,36,28,.4);display:grid;place-items:center;padding:24px;animation:rise .3s cubic-bezier(.2,.7,.2,1) backwards;}
 .matchcard{background:var(--panel);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow-lg);width:760px;max-width:100%;max-height:88vh;display:flex;flex-direction:column;overflow:hidden;}

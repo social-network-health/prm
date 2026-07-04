@@ -12,7 +12,7 @@ from __future__ import annotations
 import json
 from datetime import datetime, timezone
 
-from core import audit, relationships_db, proposals, schema, snapshots
+from core import audit, groups, relationships_db, proposals, schema, snapshots
 from core.lock import file_lock
 
 # R11a — AI value-write tiers (AC-PRM-E). MAX_AI_VALUE_BYTES keeps a free-write field from bloating the
@@ -308,6 +308,67 @@ def remove_field(home, field_id) -> dict:
             raise
         audit.append(home, {"kind": "remove_field", "field_id": field_id, "snapshot": snap.name})
         return {"ok": True, "snapshot": str(snap)}
+
+
+# Groups (plans/groups-and-tags.md) — workspace-only authoring over core/groups.py, serialized by the
+# file-lock and audited. The snapshot rule matches the schema-builder precedent (update_field /
+# remove_field): additive or metadata edits are audit-only (reversible by their inverse); anything that
+# DESTROYS rows (deleting a group, removing members) snapshots first so Undo can bring it back.
+def create_group(home, name, *, note="", by="manual:workspace") -> dict:
+    """Create a group (non-destructive — no snapshot). Lock + audit."""
+    home.create()
+    with file_lock(home.lock_file):
+        g = groups.create_group(home.relationships_db, name, note=note)
+        audit.append(home, {"kind": "group_create", "group_id": g["group_id"], "name": g["name"], "by": by})
+        return g
+
+
+def update_group(home, group_id, *, by="manual:workspace", **changes) -> dict:
+    """Edit a group's name / note / disclosure_tier (non-destructive). Lock + audit."""
+    home.create()
+    with file_lock(home.lock_file):
+        g = groups.update_group(home.relationships_db, group_id, **changes)
+        audit.append(home, {"kind": "group_update", "group_id": group_id,
+                            "changes": sorted(changes), "by": by})
+        return g
+
+
+def delete_group(home, group_id, *, by="manual:workspace") -> dict:
+    """Delete a group — destructive (memberships cascade), so **snapshot first**. Lock + audit;
+    reversible by Undo."""
+    home.create()
+    with file_lock(home.lock_file):
+        snap = snapshots.snapshot(home)
+        try:
+            groups.delete_group(home.relationships_db, group_id)
+        except Exception:
+            snapshots.restore(home, snap)
+            raise
+        audit.append(home, {"kind": "group_delete", "group_id": group_id, "by": by, "snapshot": snap.name})
+        return {"ok": True, "snapshot": str(snap)}
+
+
+def set_group_members(home, group_id, *, add=None, remove=None, by="manual:workspace") -> dict:
+    """Change a group's membership as one audited action. Adds are idempotent and non-destructive;
+    a removal destroys rows, so any call that removes **snapshots first** (reversible by Undo)."""
+    add, remove = list(add or []), list(remove or [])
+    home.create()
+    with file_lock(home.lock_file):
+        snap = snapshots.snapshot(home) if remove else None
+        try:
+            removed = groups.remove_members(home.relationships_db, group_id, remove) if remove else 0
+            res = groups.add_members(home.relationships_db, group_id, add) if add else {"added": 0, "unknown": []}
+        except Exception:
+            if snap is not None:
+                snapshots.restore(home, snap)
+            raise
+        entry = {"kind": "group_members", "group_id": group_id, "added": res["added"],
+                 "removed": removed, "unknown": res["unknown"], "by": by}
+        if snap is not None:
+            entry["snapshot"] = snap.name
+        audit.append(home, entry)
+        return {"ok": True, "added": res["added"], "removed": removed, "unknown": res["unknown"],
+                "snapshot": str(snap) if snap else None}
 
 
 def edit_contact(home, contact_id, *, resolutions=None, values=None, clears=None, multi=None,

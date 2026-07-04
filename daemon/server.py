@@ -31,8 +31,8 @@ from pathlib import Path
 from urllib.parse import parse_qs, urlparse
 
 from cli.config import PrmHome
-from core import (apply, build_label, candidates, diag, disclosure, media, relationships_db, projection,
-                  proposals, schema, shared_db, suggest)
+from core import (apply, build_label, candidates, diag, disclosure, groups, media, relationships_db,
+                  projection, proposals, schema, shared_db, suggest)
 from core.lock import LockError
 
 _MAX_IMAGE_BYTES = 16 * 1024 * 1024          # a soft cap so an accidental huge upload can't bloat the home
@@ -45,6 +45,7 @@ WORKSPACE_DIR = Path(__file__).resolve().parents[1] / "workspace"
 _API_PREFIX = "/api/"
 _IMPORT_PREFIX = "/api/import/"
 _CONTACT_PREFIX = "/api/contact/"
+_GROUPS_PREFIX = "/api/groups/"
 _STATIC = {"/": "index.html", "/index.html": "index.html", "/app.js": "app.js", "/styles.css": "styles.css"}
 _CTYPES = {".html": "text/html; charset=utf-8", ".js": "text/javascript; charset=utf-8",
            ".css": "text/css; charset=utf-8"}
@@ -148,6 +149,19 @@ def _get(path: str, query: dict, home: PrmHome, network_exposed: bool = False) -
     if path == "/api/schema":                                # the field definitions (for the edit form + R6 builder)
         return _json(200, {"fields": schema.list_fields(home.relationships_db)})
 
+    if path == "/api/groups":                                # the groups list (name/note/tier + member counts)
+        return _json(200, {"groups": groups.list_groups(home.relationships_db)})
+
+    if path.startswith(_GROUPS_PREFIX):                      # one group, members hydrated for display
+        g = groups.get_group(home.relationships_db, path[len(_GROUPS_PREFIX):])
+        if g is None:
+            return _json(404, {"error": "no such group"})
+        g["members"] = _group_member_rows(home, g.pop("member_ids"))
+        return _json(200, g)
+
+    if path == "/api/tags":                                  # the tag vocabulary + per-tag contact counts
+        return _json(200, {"tags": _tag_rows(home)})
+
     if path == "/api/suggest-photo-match":                   # R7c: which contact does this image filename fit?
         name = (query.get("name") or [""])[0]
         if not name:
@@ -165,9 +179,36 @@ def _get(path: str, query: dict, home: PrmHome, network_exposed: bool = False) -
         contact = projection.get_contact(home, rest)
         if contact is None:
             return _json(404, {"error": "no such contact"})
+        contact["groups"] = groups.groups_for_contact(home.relationships_db, rest)   # the detail-card chips
         return _json(200, contact)
 
     return _json(404, {"error": "not found", "path": path})
+
+
+def _group_member_rows(home: PrmHome, member_ids) -> list:
+    """Display rows for a group's members. Orphan-tolerant (AC-10): a contact_id that no longer
+    resolves (e.g. after a re-mirror) is returned with null fields, never silently dropped."""
+    rows = []
+    for cid in member_ids:
+        c = projection.get_contact(home, cid)
+        rows.append({"id": cid, "name": c["fn"], "email": c["email"], "org": c["org"]} if c
+                    else {"id": cid, "name": None, "email": None, "org": None, "orphaned": True})
+    return rows
+
+
+def _tag_rows(home: PrmHome) -> list:
+    """The managed tag vocabulary joined to per-tag contact counts — the browse view's rows. A value in
+    use but missing from the vocabulary (e.g. its option was removed) is included and flagged
+    ``orphan`` rather than silently omitted."""
+    field = schema.get_field(home.relationships_db, "tags")
+    options = (field or {}).get("config", {}).get("options", [])
+    counts = relationships_db.value_counts(home.relationships_db, "tags")
+    rows = [{"value": o["value"], "label": o.get("label") or o["value"],
+             "description": o.get("description", ""), "count": counts.pop(o["value"], 0)}
+            for o in options]
+    rows += [{"value": v, "label": v, "description": "", "count": n, "orphan": True}
+             for v, n in sorted(counts.items())]
+    return rows
 
 
 # --------------------------------------------------------------------------- POST (write — review)
@@ -323,6 +364,33 @@ def _post(path: str, home: PrmHome, body: dict) -> tuple[int, str, bytes]:
             apply.edit_contact(home, cid, resolutions=body.get("resolutions"), values=body.get("values"),
                                clears=body.get("clears"), multi=body.get("multi"), written_by="manual:workspace")
             return _json(200, {"ok": True})
+
+        if path == "/api/groups":                                # create a group (workspace-only authoring)
+            if not (body.get("name") or "").strip():
+                return _json(400, {"error": "a group needs a name"})
+            g = apply.create_group(home, body["name"], note=body.get("note") or "", by="manual:workspace")
+            return _json(200, {"ok": True, "group": g})
+
+        if path.startswith(_GROUPS_PREFIX):                      # per-group writes: edit / delete / members
+            rest = path[len(_GROUPS_PREFIX):]
+            gid, _, action = rest.partition("/")
+            if groups.get_group(home.relationships_db, gid) is None:
+                return _json(404, {"error": "no such group"})
+            if action == "members":                              # {add:[…], remove:[…]} — one audited action
+                add, remove = body.get("add") or [], body.get("remove") or []
+                if not add and not remove:
+                    return _json(400, {"error": "members needs `add` and/or `remove` contact ids"})
+                return _json(200, apply.set_group_members(home, gid, add=add, remove=remove,
+                                                          by="manual:workspace"))
+            if action == "delete":                               # destructive — snapshotted, Undo-able
+                return _json(200, apply.delete_group(home, gid, by="manual:workspace"))
+            if action == "":                                     # edit name / note / disclosure_tier
+                changes = {k: body[k] for k in ("name", "note", "disclosure_tier") if k in body}
+                if not changes:
+                    return _json(400, {"error": "nothing to change (name / note / disclosure_tier)"})
+                g = apply.update_group(home, gid, by="manual:workspace", **changes)
+                return _json(200, {"ok": True, "group": g})
+            return _json(404, {"error": "not found", "path": path})
 
         if path == "/api/update-field":                          # workspace-only schema edit (tag vocab, R6 builder)
             fid = body.get("field_id")

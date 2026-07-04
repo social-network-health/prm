@@ -42,8 +42,10 @@
         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3l7 4v5c0 4.5-3 7.5-7 9-4-1.5-7-4.5-7-9V7z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>
         External Access <span class="count" id="access-badge" hidden>on</span>
       </div>
-      <div class="navlabel">Coming soon</div>
-      <div class="navitem soon"><svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="9" r="2.6"/><circle cx="16" cy="9" r="2.6"/><path d="M3 19c0-2.5 1.8-4 4-4m6 4c0-2.5 1.8-4 4-4"/></svg> Groups <span class="tag">v0.3</span></div>
+      <div class="navitem" data-view="groups">
+        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><circle cx="7" cy="9" r="2.6"/><circle cx="16" cy="9" r="2.6"/><path d="M3 19c0-2.5 1.8-4 4-4m6 4c0-2.5 1.8-4 4-4"/></svg>
+        Groups
+      </div>
     </nav>
 
     <div class="sidefoot">
@@ -175,6 +177,15 @@
         <span id="b-toast-msg"></span>
         <div class="tbtns"><button id="b-toast-no">Not now</button><button class="go" id="b-toast-yes">Add to batch</button></div>
       </div>
+    </section>
+
+    <!-- ---- GROUPS (user-curated contact sets — private) + the tags browse ---- -->
+    <section class="view" id="groups">
+      <div class="topbar">
+        <h1 class="serif">Groups <span class="sub" id="groups-sub"></span></h1>
+        <button class="btn primary" id="group-new" style="margin-left:auto">+ New group</button>
+      </div>
+      <div class="groupswrap" id="groups-body"><p class="ph">Loading…</p></div>
     </section>
 
     <!-- ---- SCHEMA (define your own relationship fields) ---- -->
