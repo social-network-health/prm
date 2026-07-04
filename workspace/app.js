@@ -969,8 +969,8 @@ function renderMergeCard(cl, preview) {
     `<div class="mc-foot"><span class="reassure" id="dup-why">${preview.conflicts.length
       ? "⚠ Pick which value to keep (the red rows) — Approve unlocks once every conflict has a pick"
       : "↺ Reversible — undo anytime"}</span><span class="spacer"></span>` +
-    `<button class="btn ghost" id="dup-reject">Not a duplicate</button>` +
-    `<button class="btn ghost" id="dup-skip" title="Decide later — it stays in the queue, nothing merges">Skip</button>` +
+    `<button class="btn" id="dup-reject" title="Dismiss this pair for good — it won’t come back">Not a duplicate</button>` +
+    `<button class="btn" id="dup-skip" title="Decide later — it stays in the queue, nothing merges">Skip</button>` +
     `<button class="btn primary" id="dup-approve"${preview.conflicts.length ? " disabled" : ""}` +
     ` title="${preview.conflicts.length ? "Pick the red conflicting value(s) first" : "Merge these contacts (reversible)"}">Approve merge</button></div></div>`;
 
@@ -1004,8 +1004,8 @@ function renderProposalCard(p, preview) {
     `<div class="members">${memberChips(preview.members)}</div></div>` +
     `<table class="difftbl"><tbody>${diffRows(preview, aiPicks)}</tbody></table>` +
     `<div class="mc-foot"><span class="reassure">↺ Reversible — undo anytime</span><span class="spacer"></span>` +
-    `<button class="btn ghost" id="dup-reject">Reject</button>` +
-    `<button class="btn ghost" id="dup-skip">Skip</button>` +
+    `<button class="btn" id="dup-reject" title="Dismiss the AI’s proposal — the pair won’t come back">Reject</button>` +
+    `<button class="btn" id="dup-skip" title="Decide later — it stays in the queue, nothing merges">Skip</button>` +
     `<button class="btn primary" id="dup-approve">Approve merge</button></div></div>`;
   $("#dup-approve").addEventListener("click", async () => { await postJSON("/api/apply-proposal", { proposal_id: p.proposal_id }); advance(); });
   $("#dup-reject").addEventListener("click", async () => { await postJSON("/api/dismiss-proposal", { proposal_id: p.proposal_id }); advance(); });

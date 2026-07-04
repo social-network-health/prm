@@ -90,12 +90,15 @@
     <!-- ---- DUPLICATES (review one-at-a-time, or bulk-approve in groups) ---- -->
     <section class="view" id="duplicates">
       <div class="topbar">
-        <h1 class="serif">Duplicates <span class="sub" id="dup-sub"></span></h1>
+        <div class="titleblock">
+          <h1 class="serif">Duplicates</h1>
+          <span class="sub" id="dup-sub"></span>
+        </div>
         <div class="modetoggle" id="dupmode" role="tablist" aria-label="Review mode">
           <button data-mode="bulk" class="on"><span class="dot"></span>Bulk approve</button>
           <button data-mode="one"><span class="dot"></span>Review individually</button>
         </div>
-        <button class="btn ghost" id="undo-btn" title="Restore the state before the last merge">↺ Undo last merge</button>
+        <button class="btn" id="undo-btn" title="Restore the state before the last merge">↺ Undo last merge</button>
       </div>
 
       <!-- one at a time -->

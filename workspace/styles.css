@@ -193,7 +193,10 @@ footer.foot{display:none;}
 [hidden]{display:none !important;}
 
 /* segmented mode toggle */
-.modetoggle{display:inline-flex;background:var(--parch);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px;margin-left:auto;}
+/* controls sit LEFT, right after the title — start-of-line is where the eye begins, not far right */
+.titleblock{display:flex;flex-direction:column;gap:3px;}
+.titleblock .sub{font-size:12.5px;color:var(--muted);letter-spacing:.02em;}
+.modetoggle{display:inline-flex;background:var(--parch);border:1px solid var(--line);border-radius:11px;padding:3px;gap:2px;}
 .modetoggle button{font:inherit;font-size:13px;font-weight:500;color:var(--muted);background:transparent;border:none;border-radius:8px;padding:7px 14px;cursor:pointer;transition:color .16s;display:flex;align-items:center;gap:7px;}
 .modetoggle button .dot{width:7px;height:7px;border-radius:50%;background:var(--faint);transition:background .16s;}
 .modetoggle button.on{background:var(--panel);color:var(--ink);box-shadow:var(--shadow);font-weight:600;}
