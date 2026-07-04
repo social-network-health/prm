@@ -115,6 +115,35 @@ we *respected* vs *interpreted*, the genuine-vs-perceived-safety split, the over
 PRM diverges from other merge tools — is its own note:
 [`bulk-merge-decisions.md`](bulk-merge-decisions.md).
 
+## Decision 6 — The private overlay follows the survivor (never the cascade)
+
+*(2026-07-04, prm#88.)* Every overlay table (`field_values`, `observations`, `group_members`) keys on
+`contacts(contact_id)` with `ON DELETE CASCADE`, and a merge deletes the losing contact's row — so any
+overlay table added *after* the merge code silently loses the loser's data to the cascade. That
+happened twice (tags/notes/photo with v0.2's R2; observations with R11) before being caught while
+adding groups. The fix is a single re-point step (`relationships_db._repoint_overlay`) that runs inside
+the merge transaction, before the delete:
+
+- **`field_values`** — re-pointed with **recomputed ids**, so identical values collapse: multi-valued
+  fields (tags) union, and a single-valued field's two values **coexist as rows** — deliberately the
+  same state the append-only AI tier already creates, displayed side-by-side and consolidated by the
+  next Edit-save. Coexistence over auto-picking keeps the "flag, don't guess" rule (Decision 3): PRM
+  never silently chooses which of your two notes survives.
+- **`observations`** — re-pointed; `rejected` stays rejected (a dismissal never resurfaces),
+  `accepted` is **demoted to pending** (its promote-written resolution died with the loser — the user
+  re-reviews in the survivor's context), and the loser's `superseded` one-deep previous is dropped
+  (its promote chain was loser-specific; the audit log keeps the history).
+- **`group_members`** — collapsed into the survivor.
+- **`field_resolutions`** — the one *deliberate* cascade: the survivor's single-valued conflicts are
+  exactly what the merge UI collects picks for, so the loser's old resolutions must not leak through.
+
+The **category guard**: `tests/unit/test_merge_overlay.py` enumerates (via `PRAGMA foreign_key_list`)
+every table referencing `contacts` and fails the suite if one appears whose merge semantics aren't
+decided, implemented, and pinned — a future table can't reintroduce this bug class silently.
+
+*(Considered and deferred: surfacing overlay conflicts in the merge-preview UI next to the source-field
+conflicts. Coexistence makes that an ergonomic upgrade rather than a data-safety requirement.)*
+
 ## Relationship to CRUD
 
 Editing a contact field is *the same operation* as dedupe reconciliation: both write a `resolve_field`

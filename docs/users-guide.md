@@ -420,6 +420,11 @@ modes (toggle at the top):
   The batch applies atomically, so a single **Undo** reverses all of it.
 - In both modes: confident matches share an exact email or phone; weaker, name-only matches are flagged
   and never merged automatically. **Undo last merge** reverses the most recent merge (or the last batch).
+- **Your private data follows the merge.** Tags union, group memberships carry over, and if both
+  contacts had a note (or any single-valued field you authored), **both values are kept** on the merged
+  contact — shown side by side, never silently discarded — so you can consolidate them with one edit.
+  An AI-gathered suggestion that was pending stays pending; one you had already accepted returns to
+  *pending your review* on the merged contact.
 
 Two guarantees worth knowing:
 

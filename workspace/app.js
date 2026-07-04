@@ -102,8 +102,13 @@ async function search(q) {
 const EDITABLE_KINDS = new Set(["text", "long_text", "number", "date", "url", "boolean", "single_select"]);
 const valFirst = (f) => { const v = ((f && f.values) || []).find((x) => x.value !== "" && x.value != null); return v ? v.value : ""; };
 
-async function selectContact(id, li) {
+function selectContact(id) {
+  nav(`contacts/${encodeURIComponent(id)}`);   // a history entry — the browser Back button works
+}
+
+async function showContact(id) {              // the renderer behind #/contacts/<id> (called by route)
   document.querySelectorAll(".row.active").forEach((r) => r.classList.remove("active"));
+  const li = els.rows.querySelector(`.row[data-id="${cssEsc(id)}"]`);
   if (li) li.classList.add("active");
   renderContactRead(await api(`/api/contact/${encodeURIComponent(id)}`));
 }
@@ -114,7 +119,7 @@ function dHead(c, editing) {
   const btn = editing ? "" : `<button class="btn ghost" id="edit-contact" title="Edit this contact">✎ Edit</button>`;
   return `<div class="dhead">${avatarHTML(c.id, c.fn, c.photo && c.photo.present, editing ? Date.now() : 0)}<div class="dhbody">` +
     `<h2 class="serif">${esc(c.fn || "(no name)")}</h2>` +
-    `<div class="dmeta">${srcChips}<span>·</span><span>merged from ${n} record${n > 1 ? "s" : ""}</span></div>` +
+    `<div class="dmeta">${srcChips}<span>·</span><span>${n > 1 ? `merged from ${n} records` : "1 source record"}</span></div>` +
     `</div>${btn}</div>`;
 }
 
@@ -591,17 +596,21 @@ async function loadGroups() {
 
   body.querySelectorAll("[data-open]").forEach((r) => r.addEventListener("click", () => openGroupDetail(r.dataset.open)));
   body.querySelectorAll("[data-tag]").forEach((r) => r.addEventListener("click", () => {
-    show("contacts"); els.q.value = r.dataset.tag; search(r.dataset.tag);   // the tag search box path
+    nav("contacts"); els.q.value = r.dataset.tag; search(r.dataset.tag);   // the tag search box path
   }));
   const mt = $("#groups-managetags");
   if (mt) mt.addEventListener("click", () => openTagModal("tags", loadGroups));
 }
 
-async function openGroupDetail(gid) {
+function openGroupDetail(gid) {
+  nav(`groups/${encodeURIComponent(gid)}`);    // a history entry — Back returns to the groups list
+}
+
+async function renderGroupDetail(gid) {       // the renderer behind #/groups/<id> (called by route)
   const body = $("#groups-body");
   let g;
   try { g = await api(`/api/groups/${encodeURIComponent(gid)}`); }
-  catch (e) { alert("Couldn't open that group — " + e.message); loadGroups(); return; }
+  catch (e) { alert("Couldn't open that group — " + e.message); nav("groups"); return; }
 
   const memberRow = (m) =>
     `<div class="fielddef memberrow"><div class="fdbody" data-goto="${esc(m.id)}">` +
@@ -624,22 +633,22 @@ async function openGroupDetail(gid) {
     `<p class="hint" style="margin-top:14px">↺ Membership changes are reversible (Undo), and never touch your imported records.</p>` +
     `</div>`;
 
-  $("#grp-back").addEventListener("click", loadGroups);
-  $("#grp-edit").addEventListener("click", () => openGroupModal(g, () => openGroupDetail(gid)));
+  $("#grp-back").addEventListener("click", () => nav("groups"));
+  $("#grp-edit").addEventListener("click", () => openGroupModal(g, () => renderGroupDetail(gid)));
   $("#grp-delete").addEventListener("click", async () => {
     if (!confirm(`Delete the group “${g.name}”? Its contacts are untouched — only the group goes away. You can Undo this.`)) return;
     try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/delete`, {}); }
     catch (e) { alert("Delete failed: " + e.message); return; }
-    loadGroups();
+    nav("groups");
   });
   body.querySelectorAll("[data-goto]").forEach((r) => r.addEventListener("click", async () => {
-    show("contacts"); await browse(); selectContact(r.dataset.goto);
+    await browse(); selectContact(r.dataset.goto);
   }));
   body.querySelectorAll("[data-unmember]").forEach((b) => b.addEventListener("click", async (e) => {
     e.stopPropagation();
     try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/members`, { remove: [b.dataset.unmember] }); }
     catch (err) { alert("Remove failed: " + err.message); return; }
-    openGroupDetail(gid);
+    renderGroupDetail(gid);
   }));
 
   const q = $("#grp-q"), res = $("#grp-res");
@@ -659,7 +668,7 @@ async function openGroupDetail(gid) {
     res.querySelectorAll("[data-member]").forEach((b) => b.addEventListener("click", async () => {
       try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/members`, { add: [b.dataset.member] }); }
       catch (err) { alert("Add failed: " + err.message); return; }
-      openGroupDetail(gid);
+      renderGroupDetail(gid);
     }));
   }, 160));
 }
@@ -704,7 +713,7 @@ function groupChipsHTML(c) {
 function wireGroupChips(c) {
   els.detail.querySelectorAll("[data-gopen]").forEach((ch) => ch.addEventListener("click", (e) => {
     if (e.target.closest("[data-gremove]")) return;
-    show("groups"); openGroupDetail(ch.dataset.gopen);
+    openGroupDetail(ch.dataset.gopen);
   }));
   els.detail.querySelectorAll("[data-gremove]").forEach((x) => x.addEventListener("click", async () => {
     try { await postJSON(`/api/groups/${encodeURIComponent(x.dataset.gremove)}/members`, { remove: [c.id] }); }
@@ -957,16 +966,23 @@ function renderMergeCard(cl, preview) {
     `<div class="mergecard"><div class="mc-head"><div class="eyebrow">${esc(cl.tier)} · ${esc((cl.signals || []).join(", "))}</div>` +
     `<h3 class="serif">These look like the same person</h3><div class="members">${memberChips(preview.members)}</div></div>` +
     `<table class="difftbl"><tbody>${diffRows(preview, null)}</tbody></table>` +
-    `<div class="mc-foot"><span class="reassure">↺ Reversible — undo anytime</span><span class="spacer"></span>` +
-    `<button class="btn ghost" id="dup-reject">Not a duplicate</button>` +
-    `<button class="btn ghost" id="dup-skip">Skip</button>` +
-    `<button class="btn primary" id="dup-approve"${preview.conflicts.length ? " disabled" : ""}>Approve merge</button></div></div>`;
+    `<div class="mc-foot"><span class="reassure" id="dup-why">${preview.conflicts.length
+      ? "⚠ Pick which value to keep (the red rows) — Approve unlocks once every conflict has a pick"
+      : "↺ Reversible — undo anytime"}</span><span class="spacer"></span>` +
+    `<button class="btn" id="dup-reject" title="Dismiss this pair for good — it won’t come back">Not a duplicate</button>` +
+    `<button class="btn" id="dup-skip" title="Decide later — it stays in the queue, nothing merges">Skip</button>` +
+    `<button class="btn primary" id="dup-approve"${preview.conflicts.length ? " disabled" : ""}` +
+    ` title="${preview.conflicts.length ? "Pick the red conflicting value(s) first" : "Merge these contacts (reversible)"}">Approve merge</button></div></div>`;
 
   document.querySelectorAll("#merge .opt").forEach((opt) => opt.addEventListener("click", () => {
     opt.parentElement.querySelectorAll(".opt").forEach((o) => o.classList.remove("sel"));
     opt.classList.add("sel");
     dupPicks[opt.dataset.field] = { value: opt.dataset.val, source: opt.dataset.src };
-    $("#dup-approve").disabled = preview.conflicts.some((c) => !(c in dupPicks));
+    const missing = preview.conflicts.some((c) => !(c in dupPicks));
+    const btn = $("#dup-approve");
+    btn.disabled = missing;
+    btn.title = missing ? "Pick the red conflicting value(s) first" : "Merge these contacts (reversible)";
+    if (!missing) $("#dup-why").textContent = "↺ Reversible — undo anytime";
   }));
   $("#dup-approve").addEventListener("click", async () => {
     const resolutions = Object.entries(dupPicks).map(([field, v]) => ({ field, chosen_value: v.value, chosen_source: v.source, rule: "user" }));
@@ -988,8 +1004,8 @@ function renderProposalCard(p, preview) {
     `<div class="members">${memberChips(preview.members)}</div></div>` +
     `<table class="difftbl"><tbody>${diffRows(preview, aiPicks)}</tbody></table>` +
     `<div class="mc-foot"><span class="reassure">↺ Reversible — undo anytime</span><span class="spacer"></span>` +
-    `<button class="btn ghost" id="dup-reject">Reject</button>` +
-    `<button class="btn ghost" id="dup-skip">Skip</button>` +
+    `<button class="btn" id="dup-reject" title="Dismiss the AI’s proposal — the pair won’t come back">Reject</button>` +
+    `<button class="btn" id="dup-skip" title="Decide later — it stays in the queue, nothing merges">Skip</button>` +
     `<button class="btn primary" id="dup-approve">Approve merge</button></div></div>`;
   $("#dup-approve").addEventListener("click", async () => { await postJSON("/api/apply-proposal", { proposal_id: p.proposal_id }); advance(); });
   $("#dup-reject").addEventListener("click", async () => { await postJSON("/api/dismiss-proposal", { proposal_id: p.proposal_id }); advance(); });
@@ -1174,7 +1190,11 @@ function showBulkCard(i, dir) {
     (isAI && it.rationale ? `<p class="prationale">“${esc(it.rationale)}”</p>` : "") +
     `<div class="members">${memberHtml}</div></div>` +
     `<table class="difftbl"><tbody>${bulkDiffRows(it)}</tbody></table>` +
-    `<div class="mc-foot"><span class="reassure">↺ Reversible — part of one batch</span><span class="spacer"></span>` +
+    `<div class="mc-foot"><span class="reassure">${it._excluded
+      ? "✕ Excluded — this pair won't merge with the batch"
+      : (bReady(it) ? "✓ Ready — merges with the batch. ↺ One Undo reverses it all"
+                    : "⚠ Needs a pick — if you move on without choosing, this pair is left out of the batch (it stays in Duplicates for later)")}</span>` +
+    `<span class="spacer"></span>` +
     `<button class="btn ${it._excluded ? "" : "danger-ghost"}" id="b-exclbtn">${it._excluded ? "↩ Include in batch" : "✕ Exclude this"}</button>` +
     `<button class="btn" id="b-cardnext">Next →</button></div></div>`;
 
@@ -1404,20 +1424,43 @@ function initDataView() {
   $("#exp-raw").addEventListener("click", () => downloadExport("/api/export?raw=1", `prm-backup-${date}.json`));
 }
 
-// ---- nav / reset ----
+// ---- nav / routing / reset ----
+// Hash-based routing so the browser Back/Forward buttons navigate the app: every view switch,
+// contact selection (#/contacts/<id>), and group detail (#/groups/<id>) is a history entry. The
+// session key lives in the query string / cookie, so the hash never touches it. Wizard-internal
+// steps (bulk approve, import staging) and modals are deliberately NOT history entries.
 function show(view) {
   document.querySelectorAll(".navitem[data-view]").forEach((n) => n.classList.toggle("active", n.dataset.view === view));
   document.querySelectorAll(".view").forEach((v) => v.classList.toggle("show", v.id === view));
 }
+
+const ROUTE_VIEWS = ["contacts", "duplicates", "groups", "schema", "data", "access"];
+const VIEW_LOADERS = { duplicates: loadDuplicates, groups: loadGroups, schema: loadSchema,
+                       data: loadData, access: loadAccessView };
+
+function nav(path) {
+  const h = "#/" + path;
+  if (location.hash === h) route();           // re-navigating to the current place still refreshes it
+  else location.hash = h;                     // -> hashchange -> route() (a real history entry)
+}
+
+function route() {
+  const parts = location.hash.replace(/^#\/?/, "").split("/").map((p) => { try { return decodeURIComponent(p); } catch { return p; } });
+  const view = ROUTE_VIEWS.includes(parts[0]) ? parts[0] : "contacts";
+  show(view);
+  if (view === "contacts") {
+    if (parts[1]) { showContact(parts[1]); return; }
+    document.querySelectorAll(".row.active").forEach((r) => r.classList.remove("active"));
+    els.detail.innerHTML = `<p class="ph">Select a contact to see its fields and where each value came from.</p>`;
+    return;
+  }
+  if (view === "groups" && parts[1]) { renderGroupDetail(parts[1]); return; }
+  VIEW_LOADERS[view]();
+}
+
+window.addEventListener("hashchange", route);
 document.querySelectorAll(".navitem[data-view]").forEach((n) =>
-  n.addEventListener("click", () => {
-    show(n.dataset.view);
-    if (n.dataset.view === "duplicates") loadDuplicates();   // re-enter at the fresh home, not a stale step
-    if (n.dataset.view === "groups") loadGroups();
-    if (n.dataset.view === "schema") loadSchema();
-    if (n.dataset.view === "data") loadData();
-    if (n.dataset.view === "access") loadAccessView();
-  }));
+  n.addEventListener("click", () => nav(n.dataset.view)));
 const schemaNew = $("#schema-new");
 if (schemaNew) schemaNew.addEventListener("click", () => openFieldModal(null, loadSchema));
 const groupNew = $("#group-new");
@@ -1446,9 +1489,7 @@ els.q.addEventListener("input", debounce((e) => {
 
 els.reset.addEventListener("click", () => {        // AC-6: always-reachable escape
   els.q.value = "";
-  document.querySelectorAll(".row.active").forEach((r) => r.classList.remove("active"));
-  els.detail.innerHTML = `<p class="ph">Select a contact to see its fields and where each value came from.</p>`;
-  show("contacts");
+  nav("contacts");                                  // route() clears the selection + detail
   browse();
 });
 
@@ -1459,7 +1500,7 @@ function emptyState(msg) {
     `<button class="btn primary" id="go-import">Import some contacts</button></div>`;
   els.listhead.textContent = "All contacts";
   const b = $("#go-import");
-  if (b) b.addEventListener("click", () => { show("data"); loadData(); });
+  if (b) b.addEventListener("click", () => nav("data"));
 }
 
 async function refreshStats() {
@@ -1517,7 +1558,8 @@ function showAbout() {
     `highly functional application through which to triage contact data and build a store of private, ` +
     `curated relationship data. It is regularly validated against the personal network toolkit as a ` +
     `<a href="${PNT_URL}" target="_blank" rel="noopener noreferrer">personal network application</a>.</p>` +
-    `<p class="repo">Source code · <a href="${PRM_URL}" target="_blank" rel="noopener noreferrer">github.com/richbodo/prm</a></p>` +
+    `<p class="repo">User’s guide · <a href="${PRM_URL}/blob/main/docs/users-guide.md" target="_blank" rel="noopener noreferrer">docs/users-guide.md</a><br>` +
+    `Source code · <a href="${PRM_URL}" target="_blank" rel="noopener noreferrer">github.com/richbodo/prm</a></p>` +
     `</div></div>`;
   document.body.appendChild(el);
   const close = () => { el.remove(); document.removeEventListener("keydown", onKey); };
@@ -1550,7 +1592,8 @@ const bootWatchdog = setTimeout(() => {
       return;
     }
     await browse();
-    loadDuplicates();
+    loadDuplicates();                                        // the nav badge; route() below may re-load a view
+    if (location.hash) route();                              // honor a deep link / a restored session hash
   } catch (err) {
     booted = true; clearTimeout(bootWatchdog);
     emptyState(`Couldn’t reach the workspace API (${esc(err.message)}). Open <a href="?diag">?diag</a> for diagnostics.`);
@@ -1621,7 +1664,7 @@ function renderBanners() {
       `</span></div>`;
   }).join("");
   host.querySelectorAll("[data-dismiss]").forEach((x) => x.addEventListener("click", () => setDismissed(x.dataset.dismiss)));
-  host.querySelectorAll("[data-access]").forEach((x) => x.addEventListener("click", () => { show("access"); loadAccessView(); }));
+  host.querySelectorAll("[data-access]").forEach((x) => x.addEventListener("click", () => nav("access")));
 }
 
 async function loadDisclosure() {

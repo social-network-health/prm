@@ -162,6 +162,52 @@ def seed_identities(db_path, source_record_ids, *, created_at: str | None = None
 
 
 # --------------------------------------------------------------------------- write (apply)
+def _repoint_overlay(cur, into: str) -> None:
+    """Carry the losing contacts' PRIVATE OVERLAY over to the merge survivor, BEFORE the orphaned
+    ``contacts`` rows are deleted — every overlay table cascades on that delete, which silently
+    destroyed the loser's tags/notes/photo/observations (issue #88). The one deliberate cascade is
+    ``field_resolutions``: the survivor's conflicts are re-resolved by the merge UI's picks.
+    ``tests/unit/test_merge_overlay.py`` pins each table's semantics and guards the full table list.
+
+    - ``group_members`` — collapse into the survivor (INSERT OR IGNORE).
+    - ``field_values`` — recomputed ``value_id`` so identical values collapse: multi-valued fields
+      union; a single-valued field's two values COEXIST as rows (the same sanctioned state the
+      append-only tier creates) and the user consolidates in Edit.
+    - ``observations`` — recomputed ``obs_id``; ``rejected`` stays rejected (a dismissal never
+      resurfaces); ``accepted`` is demoted to ``observed`` (its promote-written resolution dies with
+      the loser, so it returns to pending review on the survivor); the loser's ``superseded``
+      one-deep previous is dropped (its promote chain is loser-specific; the audit log keeps history).
+
+    The losing rows themselves go away with the contacts-delete cascade."""
+    orphans = [cid for (cid,) in cur.execute(
+        "SELECT contact_id FROM contacts WHERE contact_id NOT IN (SELECT contact_id FROM identity_map)")]
+    if not orphans:
+        return
+    qs = ",".join("?" * len(orphans))
+    cur.execute(
+        "INSERT OR IGNORE INTO group_members(group_id, contact_id, added_at) "
+        f"SELECT group_id, ?, added_at FROM group_members WHERE contact_id IN ({qs})", [into, *orphans])
+    for fid, val, vjson, wby, src, wat in cur.execute(
+            "SELECT field_id, value, value_json, written_by, source, written_at "
+            f"FROM field_values WHERE contact_id IN ({qs})", orphans).fetchall():
+        cur.execute(
+            "INSERT OR IGNORE INTO field_values"
+            "(value_id, contact_id, field_id, value, value_json, written_by, source, written_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+            (value_id(into, fid, val), into, fid, val, vjson, wby, src, wat))
+    for field, val, vjson, wby, src, conf, status, wat in cur.execute(
+            "SELECT field, value, value_json, written_by, source, confidence, status, written_at "
+            f"FROM observations WHERE contact_id IN ({qs})", orphans).fetchall():
+        if status == "superseded":
+            continue
+        cur.execute(
+            "INSERT OR IGNORE INTO observations"
+            "(obs_id, contact_id, field, value, value_json, written_by, source, confidence, status, written_at) "
+            "VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (observation_id(into, field, val, src), into, field, val, vjson, wby, src, conf,
+             "observed" if status == "accepted" else status, wat))
+
+
 def apply_operations(db_path, operations) -> list:
     """Run a changeset's operations in **one transaction** (the daemon calls this under the file-lock,
     after snapshotting). Returns the applied ops for the audit log; rolls back on any error.
@@ -184,14 +230,7 @@ def apply_operations(db_path, operations) -> list:
                     cur.execute("INSERT OR IGNORE INTO contacts(contact_id, created_at) VALUES (?, ?)", (into, _now_iso()))
                     for srid in op["source_record_ids"]:
                         cur.execute("UPDATE identity_map SET contact_id = ? WHERE source_record_id = ?", (into, srid))
-                    # Re-point the now-orphaned contacts' group memberships at the survivor BEFORE the
-                    # contacts delete — its FK cascade would otherwise silently drop them (a group must
-                    # survive dedup, plans/groups-and-tags.md). INSERT OR IGNORE collapses a group that
-                    # held both halves; the losing rows then go away with the cascade.
-                    cur.execute(
-                        "INSERT OR IGNORE INTO group_members(group_id, contact_id, added_at) "
-                        "SELECT group_id, ?, added_at FROM group_members "
-                        "WHERE contact_id NOT IN (SELECT contact_id FROM identity_map)", (into,))
+                    _repoint_overlay(cur, into)
                     cur.execute("DELETE FROM contacts WHERE contact_id NOT IN (SELECT contact_id FROM identity_map)")
                 elif kind == "resolve_field":
                     cur.execute(

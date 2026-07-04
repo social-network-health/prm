@@ -55,6 +55,8 @@
       <div class="stat"><span>Build</span><b id="stat-build" class="mono" title="source revision (AC-15)">—</b></div>
       <button class="resetbtn" id="reset" title="Clear the view (always reachable)">↺ Reset view</button>
       <a class="resetbtn" id="diag-link" href="?diag" title="Sanitized diagnostics for a bug report (no contact data)">⚙ Diagnostics</a>
+      <a class="resetbtn" id="guide-link" href="https://github.com/richbodo/prm/blob/main/docs/users-guide.md"
+         target="_blank" rel="noopener noreferrer" title="The user’s guide — how to do everything, step by step">📖 User’s guide</a>
       <button class="resetbtn" id="about-link" title="About PRM">ⓘ About</button>
     </div>
   </aside>
@@ -88,12 +90,15 @@
     <!-- ---- DUPLICATES (review one-at-a-time, or bulk-approve in groups) ---- -->
     <section class="view" id="duplicates">
       <div class="topbar">
-        <h1 class="serif">Duplicates <span class="sub" id="dup-sub"></span></h1>
+        <div class="titleblock">
+          <h1 class="serif">Duplicates</h1>
+          <span class="sub" id="dup-sub"></span>
+        </div>
         <div class="modetoggle" id="dupmode" role="tablist" aria-label="Review mode">
           <button data-mode="bulk" class="on"><span class="dot"></span>Bulk approve</button>
           <button data-mode="one"><span class="dot"></span>Review individually</button>
         </div>
-        <button class="btn ghost" id="undo-btn" title="Restore the state before the last merge">↺ Undo last merge</button>
+        <button class="btn" id="undo-btn" title="Restore the state before the last merge">↺ Undo last merge</button>
       </div>
 
       <!-- one at a time -->
