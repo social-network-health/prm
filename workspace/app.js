@@ -141,9 +141,11 @@ function renderContactRead(c) {
     dHead(c, false) +
     `<div class="seg">Fields · with provenance</div><table class="kv">${srcRows}</table>` +
     (relRows ? `<div class="seg">Your notes &amp; fields</div><table class="kv">${relRows}</table>` : "") +
+    groupChipsHTML(c) +
     gatheredHTML(c.suggestions || []);
   const eb = $("#edit-contact");
   if (eb) eb.addEventListener("click", () => enterEditMode(c.id));
+  wireGroupChips(c);                                         // group chips + the add-to-group chooser
   wireGathered(c.id);                                        // R11c: Accept / Reject the AI-gathered suggestions
   wireAvatarClick(c.id, false);                              // click the avatar to set/change the photo
 }
@@ -545,6 +547,210 @@ async function openTagModal(fieldId, onSaved) {
     catch (e) { alert("Couldn't save tags: " + e.message); return; }
     close();
     if (onSaved) onSaved();
+  });
+}
+
+// ---- Groups (plans/groups-and-tags.md): user-curated contact sets — a private layer, authored only
+// here in the workspace (an AI will get read-only group tools later; it can never create or change
+// one). The same view hosts the tags browse: every tag with its description + contact count. ----
+let groupsCache = [];
+
+async function loadGroups() {
+  const body = $("#groups-body");
+  let groups = [], tags = [];
+  try {
+    const [g, t] = await Promise.all([api("/api/groups"), api("/api/tags")]);
+    groups = g.groups || []; tags = t.tags || [];
+  } catch (e) { body.innerHTML = `<p class="ph">Couldn't load groups (${esc(e.message)}).</p>`; return; }
+  groupsCache = groups;
+  const sub = $("#groups-sub");
+  if (sub) sub.textContent = `${groups.length} group${groups.length === 1 ? "" : "s"}`;
+
+  const groupRows = groups.map((g) =>
+    `<div class="fielddef grouprow" data-open="${esc(g.group_id)}"><div class="fdbody">` +
+    `<div class="fdlabel">${esc(g.name)}<span class="fdslug">${g.member_count} member${g.member_count === 1 ? "" : "s"}</span></div>` +
+    (g.note ? `<div class="fdmeta muted">${esc(g.note)}</div>` : "") +
+    `</div><div class="fdactions"><span class="fbadge sealed">private</span></div></div>`).join("");
+  const tagRows = tags.map((t) =>
+    `<div class="fielddef tagbrow" data-tag="${esc(t.value)}"><div class="fdbody">` +
+    `<div class="fdlabel">${esc(t.label)}<span class="fdslug">${t.count} contact${t.count === 1 ? "" : "s"}</span>` +
+    (t.orphan ? `<span class="fbadge">not in vocabulary</span>` : "") + `</div>` +
+    (t.description ? `<div class="fdmeta muted">${esc(t.description)}</div>` : "") +
+    `</div></div>`).join("");
+
+  body.innerHTML =
+    `<p class="lede-sub" style="margin:0 0 14px">Collect contacts into groups you define — “emergency contacts”,
+      “book club”. Groups are <b>private</b>: they live on this device and an AI can never create or change them.
+      Open a group to see and edit its members; every change is reversible.</p>` +
+    (groupRows || `<p class="hint">No groups yet — create one.</p>`) +
+    `<div class="seg" style="margin-top:26px">Tags · browse</div>` +
+    `<p class="lede-sub" style="margin:8px 0 14px">Your tag vocabulary and how many contacts carry each —
+      click a tag to see its contacts.</p>` +
+    (tagRows || `<p class="hint">No tags yet — tag a contact from its Edit view.</p>`) +
+    `<button class="btn ghost tiny" id="groups-managetags" style="margin-top:10px">Manage tags…</button>`;
+
+  body.querySelectorAll("[data-open]").forEach((r) => r.addEventListener("click", () => openGroupDetail(r.dataset.open)));
+  body.querySelectorAll("[data-tag]").forEach((r) => r.addEventListener("click", () => {
+    show("contacts"); els.q.value = r.dataset.tag; search(r.dataset.tag);   // the tag search box path
+  }));
+  const mt = $("#groups-managetags");
+  if (mt) mt.addEventListener("click", () => openTagModal("tags", loadGroups));
+}
+
+async function openGroupDetail(gid) {
+  const body = $("#groups-body");
+  let g;
+  try { g = await api(`/api/groups/${encodeURIComponent(gid)}`); }
+  catch (e) { alert("Couldn't open that group — " + e.message); loadGroups(); return; }
+
+  const memberRow = (m) =>
+    `<div class="fielddef memberrow"><div class="fdbody" data-goto="${esc(m.id)}">` +
+    `<div class="fdlabel">${esc(m.name || (m.orphaned ? "(no longer in your contacts)" : "(no name)"))}</div>` +
+    `<div class="fdmeta muted">${esc(m.email || m.org || "—")}</div></div>` +
+    `<div class="fdactions"><button class="btn ghost tiny" data-unmember="${esc(m.id)}">Remove</button></div></div>`;
+
+  body.innerHTML =
+    `<div class="groupdet">` +
+    `<div class="editbar" style="margin:0 0 14px"><button class="btn ghost" id="grp-back">← All groups</button>` +
+    `<span class="spacer"></span><button class="btn ghost tiny" id="grp-edit">✎ Edit</button>` +
+    `<button class="btn ghost tiny danger-ghost" id="grp-delete">Delete group</button></div>` +
+    `<h2 class="serif" style="margin:0">${esc(g.name)}</h2>` +
+    (g.note ? `<p class="lede-sub" style="margin:6px 0 0">${esc(g.note)}</p>` : "") +
+    `<div class="seg" style="margin-top:20px">Members <span class="gcount">${g.member_count}</span></div>` +
+    ((g.members || []).map(memberRow).join("") || `<p class="hint">No members yet — add contacts below.</p>`) +
+    `<div class="seg" style="margin-top:20px">Add a contact</div>` +
+    `<input id="grp-q" type="search" placeholder="Search your contacts to add…" autocomplete="off" style="width:100%;max-width:420px">` +
+    `<div id="grp-res" class="matchrows"></div>` +
+    `<p class="hint" style="margin-top:14px">↺ Membership changes are reversible (Undo), and never touch your imported records.</p>` +
+    `</div>`;
+
+  $("#grp-back").addEventListener("click", loadGroups);
+  $("#grp-edit").addEventListener("click", () => openGroupModal(g, () => openGroupDetail(gid)));
+  $("#grp-delete").addEventListener("click", async () => {
+    if (!confirm(`Delete the group “${g.name}”? Its contacts are untouched — only the group goes away. You can Undo this.`)) return;
+    try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/delete`, {}); }
+    catch (e) { alert("Delete failed: " + e.message); return; }
+    loadGroups();
+  });
+  body.querySelectorAll("[data-goto]").forEach((r) => r.addEventListener("click", async () => {
+    show("contacts"); await browse(); selectContact(r.dataset.goto);
+  }));
+  body.querySelectorAll("[data-unmember]").forEach((b) => b.addEventListener("click", async (e) => {
+    e.stopPropagation();
+    try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/members`, { remove: [b.dataset.unmember] }); }
+    catch (err) { alert("Remove failed: " + err.message); return; }
+    openGroupDetail(gid);
+  }));
+
+  const q = $("#grp-q"), res = $("#grp-res");
+  const inGroup = new Set((g.members || []).map((m) => m.id));
+  q.addEventListener("input", debounce(async () => {
+    const term = q.value.trim();
+    if (!term) { res.innerHTML = ""; return; }
+    let hits = [];
+    try { hits = (await api(`/api/search?q=${encodeURIComponent(term)}&limit=8`)).results || []; } catch {}
+    res.innerHTML = hits.map((c) => {
+      const already = inGroup.has(c.id);
+      return `<button class="matchrow"${already ? " disabled" : ` data-member="${esc(c.id)}"`}>` +
+        `${avatarHTML(c.id, c.name, false)}<span class="mrtext"><span class="mrname">${esc(c.name || "(no name)")}</span>` +
+        `<span class="mrsub">${esc(c.email || c.org || "—")}</span></span>` +
+        (already ? `<span class="mrbadge">already in</span>` : `<span class="mrbadge">+ add</span>`) + `</button>`;
+    }).join("") || `<div class="hint">No matches.</div>`;
+    res.querySelectorAll("[data-member]").forEach((b) => b.addEventListener("click", async () => {
+      try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/members`, { add: [b.dataset.member] }); }
+      catch (err) { alert("Add failed: " + err.message); return; }
+      openGroupDetail(gid);
+    }));
+  }, 160));
+}
+
+// Create (existing=null) or edit a group — name + note. Names are unique; the daemon enforces it.
+function openGroupModal(existing, onSaved) {
+  const isEdit = !!existing;
+  const el = document.createElement("div");
+  el.className = "aboutoverlay";
+  el.innerHTML =
+    `<div class="aboutcard"><div class="abouthead"><b class="serif">${isEdit ? "Edit group" : "New group"}</b>` +
+    `<span class="spacer"></span><button class="btn" id="gm-close">Close</button></div><div class="aboutbody">` +
+    `<div class="fmrow"><label>Name</label><input id="gm-name" value="${esc(isEdit ? existing.name : "")}" placeholder="e.g. Emergency contacts"/></div>` +
+    `<div class="fmrow"><label>Note</label><input id="gm-note" value="${esc(isEdit ? existing.note : "")}" placeholder="what this group is for (optional)"/></div>` +
+    `<div class="editbar"><span class="hint">Private — groups never leave this device.</span>` +
+    `<span class="spacer"></span><button class="btn primary" id="gm-save">${isEdit ? "Save" : "Create group"}</button></div></div></div>`;
+  document.body.appendChild(el);
+  const close = () => el.remove();
+  el.querySelector("#gm-close").addEventListener("click", close);
+  el.addEventListener("click", (e) => { if (e.target === el) close(); });
+  el.querySelector("#gm-save").addEventListener("click", async () => {
+    const name = el.querySelector("#gm-name").value.trim(), note = el.querySelector("#gm-note").value.trim();
+    if (!name) { alert("A group needs a name."); return; }
+    try {
+      if (isEdit) await apiPost(`/api/groups/${encodeURIComponent(existing.group_id)}`, { name, note });
+      else await apiPost("/api/groups", { name, note });
+    } catch (e) { alert("Save failed: " + e.message); return; }
+    close();
+    if (onSaved) onSaved();
+  });
+}
+
+// The contact-detail group chips + the add-to-group chooser (also creates a group inline).
+function groupChipsHTML(c) {
+  const chips = (c.groups || []).map((g) =>
+    `<span class="tagchip ingroup" data-gopen="${esc(g.group_id)}">${esc(g.name)}` +
+    `<button class="chipx" data-gremove="${esc(g.group_id)}" title="Remove from ${esc(g.name)}">✕</button></span>`).join("");
+  return `<div class="seg">Groups</div><div class="tagchips groupchips">${chips}` +
+    `<span class="tagchip add" data-gadd>+ Add to group</span></div>`;
+}
+
+function wireGroupChips(c) {
+  els.detail.querySelectorAll("[data-gopen]").forEach((ch) => ch.addEventListener("click", (e) => {
+    if (e.target.closest("[data-gremove]")) return;
+    show("groups"); openGroupDetail(ch.dataset.gopen);
+  }));
+  els.detail.querySelectorAll("[data-gremove]").forEach((x) => x.addEventListener("click", async () => {
+    try { await postJSON(`/api/groups/${encodeURIComponent(x.dataset.gremove)}/members`, { remove: [c.id] }); }
+    catch (e) { alert("Remove failed: " + e.message); return; }
+    selectContact(c.id);
+  }));
+  const add = els.detail.querySelector("[data-gadd]");
+  if (add) add.addEventListener("click", () => openAddToGroup(c));
+}
+
+async function openAddToGroup(c) {
+  let all = [];
+  try { all = (await api("/api/groups")).groups || []; } catch {}
+  const memberOf = new Set((c.groups || []).map((g) => g.group_id));
+  const candidates = all.filter((g) => !memberOf.has(g.group_id));
+  const el = document.createElement("div");
+  el.className = "aboutoverlay";
+  el.innerHTML =
+    `<div class="aboutcard"><div class="abouthead"><b class="serif">Add to group</b>` +
+    `<span class="spacer"></span><button class="btn" id="ag-close">Close</button></div><div class="aboutbody">` +
+    (candidates.length
+      ? `<div class="matchrows">${candidates.map((g) =>
+          `<button class="matchrow" data-ag="${esc(g.group_id)}"><span class="mrtext"><span class="mrname">${esc(g.name)}</span>` +
+          `<span class="mrsub">${g.member_count} member${g.member_count === 1 ? "" : "s"}</span></span>` +
+          `<span class="mrbadge">+ add</span></button>`).join("")}</div>`
+      : `<p class="hint">${all.length ? "Already in every group." : "No groups yet — create one below."}</p>`) +
+    `<div class="editbar"><input id="ag-new" placeholder="…or a new group name" style="flex:1">` +
+    `<button class="btn" id="ag-create">Create &amp; add</button></div></div></div>`;
+  document.body.appendChild(el);
+  const close = () => el.remove();
+  el.querySelector("#ag-close").addEventListener("click", close);
+  el.addEventListener("click", (e) => { if (e.target === el) close(); });
+  const addTo = async (gid) => {
+    try { await postJSON(`/api/groups/${encodeURIComponent(gid)}/members`, { add: [c.id] }); }
+    catch (e) { alert("Add failed: " + e.message); return; }
+    close();
+    selectContact(c.id);
+  };
+  el.querySelectorAll("[data-ag]").forEach((b) => b.addEventListener("click", () => addTo(b.dataset.ag)));
+  el.querySelector("#ag-create").addEventListener("click", async () => {
+    const name = el.querySelector("#ag-new").value.trim();
+    if (!name) return;
+    let g;
+    try { g = (await apiPost("/api/groups", { name })).group; }
+    catch (e) { alert("Couldn't create it: " + e.message); return; }
+    addTo(g.group_id);
   });
 }
 
@@ -1207,12 +1413,15 @@ document.querySelectorAll(".navitem[data-view]").forEach((n) =>
   n.addEventListener("click", () => {
     show(n.dataset.view);
     if (n.dataset.view === "duplicates") loadDuplicates();   // re-enter at the fresh home, not a stale step
+    if (n.dataset.view === "groups") loadGroups();
     if (n.dataset.view === "schema") loadSchema();
     if (n.dataset.view === "data") loadData();
     if (n.dataset.view === "access") loadAccessView();
   }));
 const schemaNew = $("#schema-new");
 if (schemaNew) schemaNew.addEventListener("click", () => openFieldModal(null, loadSchema));
+const groupNew = $("#group-new");
+if (groupNew) groupNew.addEventListener("click", () => openGroupModal(null, loadGroups));
 
 // "Match photos…" → a folder picker (read locally) → the guided matcher (R7c).
 const matchBtn = $("#match-photos"), matchInput = $("#match-input");

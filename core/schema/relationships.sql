@@ -130,3 +130,27 @@ CREATE TABLE IF NOT EXISTS observations (
     written_at  TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_observations_contact ON observations(contact_id);
+
+-- ============================== v4: groups (plans/groups-and-tags.md) ==============================
+-- User-curated contact sets — a private data layer (PNT PR-1, adapted: membership keys on the canonical
+-- contact_id, not the raw record_id, and the merge apply re-points it at the survivor so a group survives
+-- dedup). Authored only in the workspace; the MCP surface is read-only over groups and exposes no
+-- group-write tool (the INV-3-style structural lock). `disclosure_tier` is the PR-7 data-floor, per group,
+-- defaulting to sealed — a sealed group never crosses the MCP surface in any mode.
+CREATE TABLE IF NOT EXISTS groups (
+    group_id        TEXT PRIMARY KEY,              -- opaque id (groups are renameable — not a name slug)
+    name            TEXT NOT NULL,
+    note            TEXT NOT NULL DEFAULT '',
+    disclosure_tier TEXT NOT NULL DEFAULT 'private-sealed'
+        CHECK (disclosure_tier IN ('private-sealed','private-shareable-on-consent')),
+    created_at      TEXT NOT NULL,
+    updated_at      TEXT NOT NULL                  -- touched on any group/membership change; drives list order
+);
+
+CREATE TABLE IF NOT EXISTS group_members (
+    group_id   TEXT NOT NULL REFERENCES groups(group_id)     ON DELETE CASCADE,
+    contact_id TEXT NOT NULL REFERENCES contacts(contact_id) ON DELETE CASCADE,
+    added_at   TEXT NOT NULL,
+    PRIMARY KEY (group_id, contact_id)
+);
+CREATE INDEX IF NOT EXISTS idx_group_members_contact ON group_members(contact_id);
