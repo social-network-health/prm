@@ -385,6 +385,14 @@ td .hint{font-size:11.5px;color:var(--faint);margin-top:3px;}
 .fmgrow .tagrow .oname{width:130px;flex:none;}
 .fmgrow .tagrow .odesc{flex:1;min-width:0;}
 
+/* ---- duplicate discoverability (#90) ---- */
+.chip.dupflag{color:var(--clay);background:var(--clay-w);border-color:#e7d6c8;margin-left:7px;}
+.dupbanner{display:flex;align-items:center;gap:12px;margin:14px 0;padding:10px 14px;border:1px solid #e7d6c8;
+  background:var(--clay-w);border-radius:10px;font-size:13.5px;color:var(--ink-2);}
+.dupbanner .dupwhy{color:var(--muted);font-size:12px;}
+.dupbanner .btn{margin-left:auto;flex:none;}
+#grp-dups .dupbanner{margin:10px 0 0;}
+
 /* ---- groups + tags browse (plans/groups-and-tags.md) ---- */
 .groupswrap{max-width:760px;padding:24px 34px 60px;}
 .fielddef.grouprow,.fielddef.tagbrow{cursor:pointer;}
