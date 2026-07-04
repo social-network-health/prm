@@ -80,9 +80,10 @@ def main() -> int:
         # photo + custom field on ONE side only: must be adopted by the survivor whichever side wins
         apply.set_field_value(home, b, "photo", media.put(home, PNG, mime="image/png"))
         apply.set_field_value(home, b, "how_we_met", f"through Carol (pair {i})")
-        # groups: one holding both halves (must collapse to one member), one holding a single half
-        # (must follow that half to the survivor)
-        for gname, members in ((f"Pair {i} — both halves", [a, b]), (f"Pair {i} — one half", [b]),):
+        # groups: ordinary-looking names on purpose (a group is NOT a merge surface — the first manual
+        # pass read "Pair N — both halves" as merge language). "Book club" holds both halves (must
+        # collapse to one member on merge); "Emergency contacts" holds only side B (must follow it).
+        for gname, members in ((f"Book club (pair {i})", [a, b]), (f"Emergency contacts (pair {i})", [b]),):
             g = groups.find_group(db, gname) or apply.create_group(home, gname)
             apply.set_group_members(home, g["group_id"], add=members)
         # observations on one side: pending stays pending; rejected never resurfaces;

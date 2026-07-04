@@ -114,7 +114,7 @@ function dHead(c, editing) {
   const btn = editing ? "" : `<button class="btn ghost" id="edit-contact" title="Edit this contact">✎ Edit</button>`;
   return `<div class="dhead">${avatarHTML(c.id, c.fn, c.photo && c.photo.present, editing ? Date.now() : 0)}<div class="dhbody">` +
     `<h2 class="serif">${esc(c.fn || "(no name)")}</h2>` +
-    `<div class="dmeta">${srcChips}<span>·</span><span>merged from ${n} record${n > 1 ? "s" : ""}</span></div>` +
+    `<div class="dmeta">${srcChips}<span>·</span><span>${n > 1 ? `merged from ${n} records` : "1 source record"}</span></div>` +
     `</div>${btn}</div>`;
 }
 
@@ -957,16 +957,23 @@ function renderMergeCard(cl, preview) {
     `<div class="mergecard"><div class="mc-head"><div class="eyebrow">${esc(cl.tier)} · ${esc((cl.signals || []).join(", "))}</div>` +
     `<h3 class="serif">These look like the same person</h3><div class="members">${memberChips(preview.members)}</div></div>` +
     `<table class="difftbl"><tbody>${diffRows(preview, null)}</tbody></table>` +
-    `<div class="mc-foot"><span class="reassure">↺ Reversible — undo anytime</span><span class="spacer"></span>` +
+    `<div class="mc-foot"><span class="reassure" id="dup-why">${preview.conflicts.length
+      ? "⚠ Pick which value to keep (the red rows) — Approve unlocks once every conflict has a pick"
+      : "↺ Reversible — undo anytime"}</span><span class="spacer"></span>` +
     `<button class="btn ghost" id="dup-reject">Not a duplicate</button>` +
-    `<button class="btn ghost" id="dup-skip">Skip</button>` +
-    `<button class="btn primary" id="dup-approve"${preview.conflicts.length ? " disabled" : ""}>Approve merge</button></div></div>`;
+    `<button class="btn ghost" id="dup-skip" title="Decide later — it stays in the queue, nothing merges">Skip</button>` +
+    `<button class="btn primary" id="dup-approve"${preview.conflicts.length ? " disabled" : ""}` +
+    ` title="${preview.conflicts.length ? "Pick the red conflicting value(s) first" : "Merge these contacts (reversible)"}">Approve merge</button></div></div>`;
 
   document.querySelectorAll("#merge .opt").forEach((opt) => opt.addEventListener("click", () => {
     opt.parentElement.querySelectorAll(".opt").forEach((o) => o.classList.remove("sel"));
     opt.classList.add("sel");
     dupPicks[opt.dataset.field] = { value: opt.dataset.val, source: opt.dataset.src };
-    $("#dup-approve").disabled = preview.conflicts.some((c) => !(c in dupPicks));
+    const missing = preview.conflicts.some((c) => !(c in dupPicks));
+    const btn = $("#dup-approve");
+    btn.disabled = missing;
+    btn.title = missing ? "Pick the red conflicting value(s) first" : "Merge these contacts (reversible)";
+    if (!missing) $("#dup-why").textContent = "↺ Reversible — undo anytime";
   }));
   $("#dup-approve").addEventListener("click", async () => {
     const resolutions = Object.entries(dupPicks).map(([field, v]) => ({ field, chosen_value: v.value, chosen_source: v.source, rule: "user" }));
@@ -1174,7 +1181,11 @@ function showBulkCard(i, dir) {
     (isAI && it.rationale ? `<p class="prationale">“${esc(it.rationale)}”</p>` : "") +
     `<div class="members">${memberHtml}</div></div>` +
     `<table class="difftbl"><tbody>${bulkDiffRows(it)}</tbody></table>` +
-    `<div class="mc-foot"><span class="reassure">↺ Reversible — part of one batch</span><span class="spacer"></span>` +
+    `<div class="mc-foot"><span class="reassure">${it._excluded
+      ? "✕ Excluded — this pair won't merge with the batch"
+      : (bReady(it) ? "✓ Ready — merges with the batch. ↺ One Undo reverses it all"
+                    : "⚠ Needs a pick — if you move on without choosing, this pair is left out of the batch (it stays in Duplicates for later)")}</span>` +
+    `<span class="spacer"></span>` +
     `<button class="btn ${it._excluded ? "" : "danger-ghost"}" id="b-exclbtn">${it._excluded ? "↩ Include in batch" : "✕ Exclude this"}</button>` +
     `<button class="btn" id="b-cardnext">Next →</button></div></div>`;
 
@@ -1517,7 +1528,8 @@ function showAbout() {
     `highly functional application through which to triage contact data and build a store of private, ` +
     `curated relationship data. It is regularly validated against the personal network toolkit as a ` +
     `<a href="${PNT_URL}" target="_blank" rel="noopener noreferrer">personal network application</a>.</p>` +
-    `<p class="repo">Source code · <a href="${PRM_URL}" target="_blank" rel="noopener noreferrer">github.com/richbodo/prm</a></p>` +
+    `<p class="repo">User’s guide · <a href="${PRM_URL}/blob/main/docs/users-guide.md" target="_blank" rel="noopener noreferrer">docs/users-guide.md</a><br>` +
+    `Source code · <a href="${PRM_URL}" target="_blank" rel="noopener noreferrer">github.com/richbodo/prm</a></p>` +
     `</div></div>`;
   document.body.appendChild(el);
   const close = () => { el.remove(); document.removeEventListener("keydown", onKey); };
