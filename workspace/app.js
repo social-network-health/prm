@@ -64,9 +64,10 @@ function rowItem(c) {
   const chips = sources.slice(0, 3).map((s) => `<span class="chip src">${esc(srcLabel(s))}</span>`).join("");
   const merged = c.member_count > 1 ? `<span class="chip merged">${c.member_count}×</span>` : "";
   const gathered = c.has_suggestions ? `<span class="chip gathered" title="An AI gathered new info for your review">🤖</span>` : "";
+  const dup = dupChipHTML(c.id);
   li.innerHTML =
     avatarHTML(c.id, c.name, c.has_photo) +
-    `<span class="nm">${esc(c.name || "(no name)")}${merged}${gathered}</span>` +
+    `<span class="nm">${esc(c.name || "(no name)")}${merged}${gathered}${dup}</span>` +
     `<span class="sub">${esc(c.email || c.org || "—")}</span>` +
     `<span class="srcs">${chips}</span>`;
   li.addEventListener("click", () => selectContact(c.id, li));
@@ -123,7 +124,10 @@ function dHead(c, editing) {
     `</div>${btn}</div>`;
 }
 
+let _detailId = null;                 // the contact the read view currently shows (guards async annotate)
+
 function renderContactRead(c) {
+  _detailId = c.id;
   const srcRows = (c.fields || []).filter((f) => !NOISE.has(f.name) && !f.custom).map((f) => {
     const vals = (f.values || []).filter((v) => v.value !== "" && v.value != null);
     if (!vals.length) return "";
@@ -153,6 +157,7 @@ function renderContactRead(c) {
   wireGroupChips(c);                                         // group chips + the add-to-group chooser
   wireGathered(c.id);                                        // R11c: Accept / Reject the AI-gathered suggestions
   wireAvatarClick(c.id, false);                              // click the avatar to set/change the photo
+  annotateContactDup(c.id);                                  // #90: the possible-duplicate banner (async)
 }
 
 // ---- R11c: the "Gathered" review surface — Accept / Reject (or leave = Skip) an AI-gathered observation,
@@ -250,6 +255,7 @@ function tagPicker(sf, selected) {
 }
 
 function renderContactEdit(c, schemaFields) {
+  _detailId = null;                     // edit mode: no duplicate banner (a pending annotate must not fire)
   const fields = c.fields || [];
   const byId = Object.fromEntries(fields.map((f) => [f.name, f]));
   const srcRows = fields.filter((f) => !NOISE.has(f.name) && !f.custom && f.kind === "single").map((f) =>
@@ -606,7 +612,10 @@ function openGroupDetail(gid) {
   nav(`groups/${encodeURIComponent(gid)}`);    // a history entry — Back returns to the groups list
 }
 
+let _groupId = null;                  // the group the detail view currently shows (guards async annotate)
+
 async function renderGroupDetail(gid) {       // the renderer behind #/groups/<id> (called by route)
+  _groupId = gid;
   const body = $("#groups-body");
   let g;
   try { g = await api(`/api/groups/${encodeURIComponent(gid)}`); }
@@ -627,6 +636,7 @@ async function renderGroupDetail(gid) {       // the renderer behind #/groups/<i
     (g.note ? `<p class="lede-sub" style="margin:6px 0 0">${esc(g.note)}</p>` : "") +
     `<div class="seg" style="margin-top:20px">Members <span class="gcount">${g.member_count}</span></div>` +
     ((g.members || []).map(memberRow).join("") || `<p class="hint">No members yet — add contacts below.</p>`) +
+    `<div id="grp-dups"></div>` +
     `<div class="seg" style="margin-top:20px">Add a contact</div>` +
     `<input id="grp-q" type="search" placeholder="Search your contacts to add…" autocomplete="off" style="width:100%;max-width:420px">` +
     `<div id="grp-res" class="matchrows"></div>` +
@@ -650,6 +660,8 @@ async function renderGroupDetail(gid) {       // the renderer behind #/groups/<i
     catch (err) { alert("Remove failed: " + err.message); return; }
     renderGroupDetail(gid);
   }));
+
+  annotateGroupDups(g, gid);                  // #90: call out members that look like the same person
 
   const q = $("#grp-q"), res = $("#grp-res");
   const inGroup = new Set((g.members || []).map((m) => m.id));
@@ -910,6 +922,98 @@ async function fetchDuplicates() {
   dupItems = aiItems.concat(detItems);              // AI proposals first — review the AI's work, then the detector
   dupIndex = 0;
   updateDupCounts();
+  markDupRows();                                    // the list may have rendered before this data existed
+}
+
+// ---- duplicate discoverability (#90): surface a pending CONFIDENT or AI-proposed candidate on the
+// contact itself (a list chip + a detail banner) and inside a group, each deep-linking into the
+// individual review card for that cluster (#/duplicates/<key>). Weak name-only matches deliberately
+// do NOT flag — on real data they mark a large share of all contacts and the signal means nothing.
+// Everything derives from the same /api/proposals + /api/candidates data the Duplicates tab shows,
+// so the indicator can never disagree with the review queue.
+const SIGNAL_LABEL = { email_exact: "same email", phone_exact: "same phone", profile_url: "same profile link" };
+
+function dupEntryFor(cid) {
+  for (const it of dupItems) {
+    if (it.kind !== "proposal" && it.tier !== "confident") continue;
+    const mids = it.member_ids || [];
+    if (!mids.includes(cid)) continue;
+    return { key: it.key || it.cluster_key, others: mids.filter((m) => m !== cid),
+             why: it.kind === "proposal" ? "AI-proposed"
+                : (it.signals || []).map((sg) => SIGNAL_LABEL[sg] || sg).join(", ") };
+  }
+  return null;
+}
+
+function dupChipHTML(cid) {
+  return dupEntryFor(cid)
+    ? `<span class="chip dupflag" title="Looks like a duplicate of another contact — open it to review">duplicate?</span>` : "";
+}
+
+function markDupRows() {
+  els.rows.querySelectorAll(".row[data-id]").forEach((li) => {
+    if (li.querySelector(".dupflag")) return;
+    const chip = dupChipHTML(li.dataset.id);
+    const nm = li.querySelector(".nm");
+    if (chip && nm) nm.insertAdjacentHTML("beforeend", chip);
+  });
+}
+
+async function ensureDupItems() {
+  if (!dupItems.length) { try { await fetchDuplicates(); } catch { /* store not ready */ } }
+}
+
+// The banner on a flagged contact's page — appended async (needs the candidate set + the other
+// half's name), and only if the user is still looking at that contact when the fetches settle.
+async function annotateContactDup(cid) {
+  await ensureDupItems();
+  const e = dupEntryFor(cid);
+  if (!e || _detailId !== cid) return;
+  const names = [];
+  for (const oid of e.others.slice(0, 2)) {
+    try { names.push((await api(`/api/contact/${encodeURIComponent(oid)}`)).fn || "(no name)"); } catch {}
+  }
+  if (_detailId !== cid || els.detail.querySelector(".dupbanner")) return;
+  const div = document.createElement("div");
+  div.className = "dupbanner";
+  div.innerHTML =
+    `<span>⚠ Looks like the same person as <b>${esc(names.join(" and ") || "another contact")}</b>` +
+    ` <span class="dupwhy">${esc(e.why)}</span></span>` +
+    `<button class="btn tiny" data-dupreview>Review &amp; merge…</button>`;
+  const head = els.detail.querySelector(".dhead");
+  if (head) head.after(div); else els.detail.prepend(div);
+  div.querySelector("[data-dupreview]").addEventListener("click", () => nav(`duplicates/${encodeURIComponent(e.key)}`));
+}
+
+// Inside a group: two members that are a pending confident/AI pair get called out together.
+async function annotateGroupDups(g, gid) {
+  await ensureDupItems();
+  if (_groupId !== gid) return;
+  const byKey = {};
+  (g.members || []).forEach((m) => {
+    const e = dupEntryFor(m.id);
+    if (e) (byKey[e.key] ||= { e, names: [] }).names.push(m.name || "(no name)");
+  });
+  const hits = Object.values(byKey).filter((x) => x.names.length >= 2);
+  const host = $("#grp-dups");
+  if (!hits.length || !host) return;
+  host.innerHTML = hits.map((h) =>
+    `<div class="dupbanner"><span>⚠ <b>${h.names.map(esc).join("</b> and <b>")}</b> look like the same person` +
+    ` <span class="dupwhy">${esc(h.e.why)}</span></span>` +
+    `<button class="btn tiny" data-dupkey="${esc(h.e.key)}">Review &amp; merge…</button></div>`).join("");
+  host.querySelectorAll("[data-dupkey]").forEach((b) =>
+    b.addEventListener("click", () => nav(`duplicates/${encodeURIComponent(b.dataset.dupkey)}`)));
+}
+
+// Deep link (#/duplicates/<key>) from any duplicate indicator: land in individual review, positioned
+// on that cluster. If it is gone (merged or dismissed meanwhile), fall back to the duplicates home.
+async function openDuplicateReview(key) {
+  setDupMode("one");
+  try { await fetchDuplicates(); } catch { return; }
+  const i = dupItems.findIndex((it) => (it.key || it.cluster_key) === key);
+  if (i < 0) { setDupMode("bulk"); renderBulkGroups(); return; }
+  dupIndex = i;
+  showItem();
 }
 
 // Land on the duplicates "home": fresh data, then pick-groups (bulk) or one-at-a-time (review).
@@ -1247,14 +1351,14 @@ async function mergeBatch() {
   fetchDuplicates().catch(() => {});                 // refresh the nav badge + subtitle to the post-merge count
 }
 
+function setDupMode(mode) {
+  dupMode = mode;
+  document.querySelectorAll("#dupmode button").forEach((x) => x.classList.toggle("on", x.dataset.mode === mode));
+  $("#dupone").hidden = mode !== "one";
+  $("#dupbulk").hidden = mode !== "bulk";
+}
 document.querySelectorAll("#dupmode button").forEach((b) =>
-  b.addEventListener("click", () => {
-    dupMode = b.dataset.mode;
-    document.querySelectorAll("#dupmode button").forEach((x) => x.classList.toggle("on", x === b));
-    $("#dupone").hidden = dupMode !== "one";
-    $("#dupbulk").hidden = dupMode !== "bulk";
-    loadDuplicates();                                       // refetch + dispatch to the active mode
-  }));
+  b.addEventListener("click", () => { setDupMode(b.dataset.mode); loadDuplicates(); }));
 $("#b-go").addEventListener("click", startSpotCheck);
 $("#b-prev").addEventListener("click", () => { if (bulkIdx > 0) showBulkCard(bulkIdx - 1, "prev"); });
 $("#b-next").addEventListener("click", () => { if (bulkIdx < bulkQueue.length - 1) showBulkCard(bulkIdx + 1, "next"); });
@@ -1454,6 +1558,7 @@ function route() {
     els.detail.innerHTML = `<p class="ph">Select a contact to see its fields and where each value came from.</p>`;
     return;
   }
+  if (view === "duplicates" && parts[1]) { openDuplicateReview(parts[1]); return; }
   if (view === "groups" && parts[1]) { renderGroupDetail(parts[1]); return; }
   VIEW_LOADERS[view]();
 }

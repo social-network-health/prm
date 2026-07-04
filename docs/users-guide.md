@@ -43,6 +43,7 @@ data never leaves your device.
 | Browse + search your contacts in a local **web workspace** (`just serve`) | ✅ works |
 | **Import contacts in the workspace** — drag-drop or pick a file/folder, preview, then import (no terminal) | ✅ works |
 | **Find & merge duplicate contacts** in the workspace — one at a time **or in bulk by group**, reversible | ✅ works |
+| **See a pending duplicate on the contact itself** — a marker in the list, a banner on the contact, a call-out inside a group — one click into reviewing that pair (confident + AI matches) | ✅ works |
 | **Edit a contact** in the workspace — fix a name/org, add private **notes** — reversible, never touches your imported records | ✅ works |
 | **Tag** contacts from a managed vocabulary (name + description), search by tag — private, never leaves the device | ✅ works |
 | **Browse your tags** — every tag with its description + contact count, click through to its contacts | ✅ works |
@@ -396,9 +397,11 @@ its members** — remove one, or **add contacts by searching** right there — a
 group on the spot). Groups are **private relationship data**: they live in your private store on this
 device, an AI can never create or change one, and every change is reversible (**Undo**) and survives both
 **merges** (a merged contact keeps its memberships) and **re-imports**. Deleting a group never touches
-the contacts in it. The same view hosts a **Tags browse**: every tag in your vocabulary with its
-description and how many contacts carry it — click one to see those contacts, or jump into *Manage
-tags…* from there. *(Coming next: filter the Contacts list by group, bulk-add many contacts at once, and
+the contacts in it. If a group ends up holding **two contacts that look like the same person** (a
+confident or AI-proposed duplicate), the group calls it out with a **Review & merge…** link — a group is
+never a merge surface itself, but it will point you at the real one. The same view hosts a **Tags
+browse**: every tag in your vocabulary with its description and how many contacts carry it — click one
+to see those contacts, or jump into *Manage tags…* from there. *(Coming next: filter the Contacts list by group, bulk-add many contacts at once, and
 export a single group as a vCard.)*
 
 (To stop the server, use `just stop` — or `Ctrl-C` in the terminal running it. If a *crashed* run left
@@ -420,6 +423,12 @@ modes (toggle at the top):
   The batch applies atomically, so a single **Undo** reverses all of it.
 - In both modes: confident matches share an exact email or phone; weaker, name-only matches are flagged
   and never merged automatically. **Undo last merge** reverses the most recent merge (or the last batch).
+- **You don't have to start from this tab.** A contact with a *confident* (or AI-proposed) pending
+  duplicate announces itself wherever you meet it: a small **`duplicate?` marker** on its row in the
+  contacts list, a banner on its page — *"⚠ Looks like the same person as … — Review & merge…"* — and,
+  if a group happens to hold both halves, a call-out inside that group. Each takes you straight to the
+  review card for exactly that pair. (Weak name-only matches don't get the marker — on real data they'd
+  flag half your contacts; they stay here in the Duplicates tab.)
 - **Your private data follows the merge.** Tags union, group memberships carry over, and if both
   contacts had a note (or any single-valued field you authored), **both values are kept** on the merged
   contact — shown side by side, never silently discarded — so you can consolidate them with one edit.
