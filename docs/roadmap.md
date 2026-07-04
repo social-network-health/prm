@@ -23,7 +23,10 @@ fixtures. Import **infers the source, previews it, and asks before committing** 
 
 ## v0.2 — Private overlay, custom schema, AI-write tiers
 
-Grow the v0.1 private store into the full **Private DB**: **groups, tags, freeform notes**. On that
+Grow the v0.1 private store into the full **Private DB**: **groups, tags, freeform notes**. (Tags and
+notes are landed; **groups** — deferred at first as a fast-follow — are now planned and in progress:
+[`../plans/groups-and-tags.md`](../plans/groups-and-tags.md), pulled forward deliberately because v0.3's
+delegated gathering runs *over a chosen group* and PNT's `private-data-ops` MCP contract is groups-centric.) On that
 foundation, the user-authored **custom relationship schema** — arbitrary typed fields, defined and
 edited **only** in the workspace (INV-3). Each field carries an **AI-write policy**
 (`review-required` | `append-only` | `free-write`), defaulting to the most protective tier
