@@ -1,29 +1,20 @@
 # PRM — User's Guide
 
 A **local-only Personal Relationship Manager**: it pulls your contacts out of the places they're
-scattered (Google, Apple, LinkedIn, Facebook, loose `.vcf`/`.csv` files) into one place you own, and
-— eventually — lets you keep private relationship notes on top and an AI help maintain them. Your
-data never leaves your device.
+scattered (Google, Apple, LinkedIn, Facebook, loose `.vcf`/`.csv` files) into one place you own, lets
+you keep private relationship data on top — notes, tags, groups, photos, fields you design — and lets
+an AI help maintain it under controls you hold. Your data never leaves your device.
 
-> **Status (v0.1, in progress).** What works **today**: point `prm` at your real contact exports —
-> **vCard, Google Takeout, LinkedIn, Google CSV, Facebook** — and it parses them, gives each contact a
-> stable identity, **saves them into a local database**, lets you **search from the terminal or browse
-> them in a local web workspace** (`just serve`), and **find & merge duplicate contacts** in that
-> workspace — review one at a time **or bulk-approve whole groups** (spot-check, then merge in one pass),
-> pick the winner for any conflict, every merge reversible. An **AI can also propose the merges for you**
-> (over a local MCP server) — it can only *propose*; you still review and approve each one in the workspace. You can also **re-import an updated export** and preview
-> exactly what changes (`just reimport`), and **export your contacts** — a portable vCard to move them to
-> another app, or a lossless `--raw` backup you can re-import (`just export`). Building on that, you can now
-> **edit contacts, add private notes, set a contact photo, tag them from a vocabulary you manage**,
-> **collect contacts into groups you define** (with a browse view for your tags), and
-> **define your own custom relationship fields** — all private, reversible, and layered over your imports
-> (never changing them). You can also **import and export right in the workspace** now — drag in a file or
-> folder and preview before anything is saved, or download a vCard or backup — no terminal needed.
-> And you can now **grant an AI access under an explicit consent gate** — declare *local* (data stays on
-> this device) or *cloud* (data leaves it, raising a clearly-signalled exception), with a **per-field
-> data-floor** that keeps your sealed fields off the wire no matter what, a one-click return to
-> local-only mode, and an optional **per-read approval** that holds each AI read of private data for your
-> sign-off (the **External Access** tab). This guide marks clearly what runs now vs. what's coming.
+> **Status (v0.2).** Everything in v0.1 — import from all five sources, search, the web workspace,
+> find-&-merge dedup (individual and bulk), AI-*proposed* merges over MCP, non-destructive re-import,
+> and export (portable vCard + lossless backup) — is done, attested against the
+> [Personal Network Toolkit](https://github.com/richbodo/personal_network_toolkit) in
+> [`Architecture.md`](Architecture.md). Most of v0.2 has landed too: contact editing, notes, tags (with
+> a managed vocabulary and a browse view), **groups**, photos (imported, uploaded, or matched from a
+> folder), a user-designed **custom schema**, workspace import/export, the desktop app and installer,
+> and the whole **External Access** surface — the AI consent gate, the per-field data-floor, per-read
+> approval, and review of AI-gathered suggestions. The [table below](#what-you-can-do-today) is the
+> honest inventory of what runs today versus what's next.
 
 > 📖 **New here, or want the picture behind the steps?** Two illustrated explainers walk the whole
 > thing with screenshots of every juncture:
@@ -32,87 +23,74 @@ data never leaves your device.
 > (the consent gate, the data-floor, per-read approval, and the three AI-write flavors). This guide points
 > to the relevant one as each task comes up.
 
+**How this guide is organized.** [Getting set up](#getting-set-up) first, then three parts:
+**[Part 1 — The workspace](#part-1--the-workspace)** (the graphical app — most of what you'll do,
+with a screenshot of every surface), **[Part 2 — The command line](#part-2--the-command-line)**
+(the same core operations from a terminal, plus the few things only the CLI does), and
+**[Part 3 — Concepts & reference](#part-3--concepts--reference)** (where your data lives, privacy,
+troubleshooting). Each part ends with an honest list of what it *can't* do yet.
+
 ---
 
 ## What you can do today
 
-| Capability | Status |
-| --- | --- |
-| Import **vCard** / **Google Takeout** / **LinkedIn** / **Google CSV** / **Facebook** | ✅ works |
-| **Search** your imported contacts from the terminal | ✅ works |
-| Browse + search your contacts in a local **web workspace** (`just serve`) | ✅ works |
-| **Import contacts in the workspace** — drag-drop or pick a file/folder, preview, then import (no terminal) | ✅ works |
-| **Find & merge duplicate contacts** in the workspace — one at a time **or in bulk by group**, reversible | ✅ works |
-| **See a pending duplicate on the contact itself** — a marker in the list, a banner on the contact, a call-out inside a group — one click into reviewing that pair (confident + AI matches) | ✅ works |
-| **Edit a contact** in the workspace — fix a name/org, add private **notes** — reversible, never touches your imported records | ✅ works |
-| **Tag** contacts from a managed vocabulary (name + description), search by tag — private, never leaves the device | ✅ works |
-| **Browse your tags** — every tag with its description + contact count, click through to its contacts | ✅ works |
-| **Group** contacts — create any number of private groups, add/remove members from a contact or inside the group; survives merges, reversible | ✅ works |
-| **Operate on a group** — filter Contacts by group, bulk-add from the list, export one group | ⏳ next |
-| An AI can **read your groups** (consent-gated, read-only MCP tools — it can never create or change one) | ⏳ next |
-| **Define your own fields** — a typed custom schema (text, date, select, …) in the workspace; they appear on every contact | ✅ works |
-| **Contact photos** — imported photos (incl. **Google Takeout**) show as the avatar; upload your own, or **match a folder of loose photos** one-by-one with a suggested contact — private, reversible | ✅ works |
-| Inspect an export without saving anything (`--dry-run`) | ✅ works |
-| **Re-import** an updated export — preview changes, merges preserved (`just reimport`) | ✅ works |
-| Try a realistic demo with synthetic data (no personal data needed) | ✅ works |
-| **AI**-assisted dedup — an AI proposes merges (over MCP), you review them | ✅ works |
-| **Grant an AI access** under a consent gate — *local* vs *cloud* (`EX-CLOUD-LLM`), with a per-field **data-floor** (sealed fields never leave) + one-click return to local-only, in the **External Access** tab | ✅ works |
-| **Approve each AI read** of private data (optional) — hold every shareable-field read for per-contact Approve/Deny | ✅ works |
-| **Review AI-gathered suggestions** on a contact — **Accept** (folds in, reversible) / **Reject** each; a 🤖 marker flags contacts with data waiting | ✅ works |
-| **Export** your merged contacts to a portable vCard (`just export`) | ✅ works |
-| **Back up** all raw records to re-importable JSON (`just export --raw`) | ✅ works |
-| **Export contacts in the workspace** — download a portable vCard or a raw backup (no terminal) | ✅ works |
-| **Re-import** an updated export *in the workspace* (change preview) | ⏳ next — use `just reimport` |
-| **Run as a native desktop app** (`prm app` / `just app`) — a window, no browser tab | ✅ works |
-| **Install for daily use** (`just install`) — per-user data dir, safe across `git pull` updates | ✅ works |
+| Capability | Where | Status |
+| --- | --- | --- |
+| Import **vCard** / **Google Takeout** / **LinkedIn** / **Google CSV** / **Facebook** | workspace + CLI | ✅ works |
+| Preview an import **before anything is saved** (dry run) | workspace + CLI | ✅ works |
+| **Search** your contacts (name, email, org, notes, tags) | workspace + CLI | ✅ works |
+| Browse contacts + see **per-field provenance** (which source each value came from) | workspace | ✅ works |
+| **Edit a contact** — fix a name/org, add private **notes** — reversible, never touches your imports | workspace | ✅ works |
+| **Tag** contacts from a managed vocabulary; **browse all tags** with counts; search by tag | workspace | ✅ works |
+| **Group** contacts — any number of private groups; add/remove from a contact or inside the group; survives merges | workspace | ✅ works |
+| **Operate on a group** — filter Contacts by group, bulk-add from the list, export one group | workspace | ⏳ next |
+| **Contact photos** — imported avatars (incl. Takeout), your own uploads, or a guided **folder-of-photos matcher** | workspace | ✅ works |
+| **Define your own fields** — a typed custom schema (text, date, select, …), sealed by default | workspace | ✅ works |
+| **Find & merge duplicates** — one at a time or **bulk by group**, conflicts picked by you, one Undo | workspace | ✅ works |
+| **See a pending duplicate on the contact itself** — list marker, contact banner, in-group call-out → one click into that review | workspace | ✅ works |
+| Edit **multi-value fields** (a contact's several emails/phones) | workspace | ⏳ next |
+| **Re-import** an updated export with a change preview, merges preserved | CLI (`just reimport`) | ✅ works · workspace ⏳ next |
+| **Export** — portable vCard, or a lossless re-importable `--raw` backup | workspace + CLI | ✅ works |
+| **AI-assisted dedup** — an AI *proposes* merges over MCP; you approve each in the workspace | MCP + workspace | ✅ works |
+| **Grant an AI access** under a consent gate — *local* vs *cloud* (`EX-CLOUD-LLM`), per-field **data-floor**, one-click return | workspace | ✅ works |
+| **Approve each AI read** of private data (optional per-read review) | workspace | ✅ works |
+| **Review AI-gathered suggestions** — Accept (reversible) / Reject, per value | workspace | ✅ works |
+| An AI can **read your groups** (consent-gated, read-only — it can never create or change one) | MCP | ⏳ next |
+| Try a realistic **demo** with ~1000 synthetic contacts | CLI (`just demo`) | ✅ works |
+| **Run as a native desktop app** (`prm app`) — a window, no browser tab | desktop | ✅ works |
+| **Install for daily use** (`just install`) — per-user data dir, safe across `git pull` updates | CLI | ✅ works |
+| Sanitized **diagnostics** for bug reports (no contact data) | workspace (`?diag`) + CLI (`prm doctor`) | ✅ works |
 
 ---
 
-## Before you start
+## Getting set up
 
-- **Python 3.10 or newer** and **git**.
-- **[`just`](https://github.com/casey/just#installation)** (recommended) — the command runner this
-  guide uses, so setup and everyday tasks are one memorable word: `just setup`, `just serve`,
-  `just search`. Install it with `brew install just` (macOS), `cargo install just`, or your package
-  manager. Every recipe is a thin wrapper around a plain command — `just` is a convenience, not a
-  requirement. Run `just` (or `just --list`) to see every recipe and what it runs; the "without `just`"
-  commands are given alongside throughout.
-- The only runtime dependency is a vCard lexer — **`vobjectx`** (installed in the setup step below).
-  The older `vobject` works as a drop-in fallback if that's what you already have.
+You'll need **Python 3.10 or newer** and **git**. The guide uses
+**[`just`](https://github.com/casey/just#installation)** (install with `brew install just`,
+`cargo install just`, or your package manager) so everyday tasks are one memorable word — every recipe
+is a thin wrapper around a plain command (`just --list` shows each one), so `just` is a convenience,
+not a requirement. The only runtime dependency is a vCard lexer, **`vobjectx`** (the older `vobject`
+works as a drop-in fallback).
 
 This tool is meant to be **built from source and verified by you** — you can read every line, run the
-test suite, and (as the toolkit matures) run the Personal Network Toolkit conformance tests to
-confirm it behaves as a compliant, local-only PNA before you trust it with your contacts.
+test suite, and run the toolkit conformance flow to confirm it behaves as a compliant, local-only PNA
+before you trust it with your contacts.
 
----
-
-## 1. Get the code
+### 1. Get the code and set up
 
 ```bash
 git clone https://github.com/richbodo/prm.git
 cd prm
-```
-
-## 2. Set up
-
-One command creates an isolated environment (`./.venv`) and installs the package with its dependency:
-
-```bash
 just setup            # creates ./.venv and installs prm + vobjectx + pytest (editable)
 ```
 
-That's all — **every other `just` command in this guide uses that environment automatically**, so you
-never have to activate anything. (Prefer `prm`, `pytest`, and `python` directly on your PATH? Run
-`just shell` to drop into an activated sub-shell; type `exit` to leave.)
-
-**Confirm your build is sound:**
+Every other `just` command uses that environment automatically — you never activate anything.
+Confirm the build is sound:
 
 ```bash
 just doctor           # checks Python ≥3.10, the deps, FTS5, and the workspace port
-just test             # runs the unit + DB test suite
+just test             # runs the test suite
 ```
-
-You should see the checks pass and the tests green.
 
 <details>
 <summary><strong>Without <code>just</code></strong> (the equivalent plain commands)</summary>
@@ -121,95 +99,285 @@ You should see the checks pass and the tests green.
 python3 -m venv .venv
 source .venv/bin/activate          # Windows: .venv\Scripts\activate
 pip install -e ".[dev]"            # installs prm + vobjectx + pytest
-pytest                             # confirm the build (or: python3 tests/unit/test_vcard_path.py)
+pytest                             # confirm the build
 ```
 
-After this, `prm …` and `python3 -m cli …` are interchangeable. `just --list` shows the recipe behind
-every command in this guide, so you can always run the underlying command by hand instead.
+After this, `prm …` and `python3 -m cli …` are interchangeable.
 </details>
 
-### Install for daily use (the desktop app)
+### 2. Try the demo (no personal data)
 
-`just setup` above is the **developer** path — it runs everything from the repo with data in
-`./prm-data/`. When you're ready to **use PRM every day**, run the install wizard instead:
-
-```bash
-just install          # interactive: pick a data location, install `prm`, record where your data lives
-```
-
-It (1) suggests a **per-user data directory** outside the repo — on macOS
-`~/Library/Application Support/PRM`, on Linux `~/.local/share/prm` — and lets you change it; (2) offers
-to **move** any existing `./prm-data/` there; (3) installs `prm` with
-[pipx](https://pipx.pypa.io) as an **editable** install (so it runs straight from your source checkout,
-with the desktop window included) — **offering to install pipx itself if you don't have it** (and falling
-back to `./.venv` only if you decline); and (4) records the data location so `prm` finds it automatically.
-
-Then launch the workspace as a **native desktop window** (no browser tab):
-
-```bash
-prm app               # or:  just app
-```
-
-Because your data lives **outside** the source tree, **updating never touches it** — pull the latest
-code and relaunch:
-
-```bash
-git pull              # update the app; your contacts in the data dir are untouched
-prm config --show     # confirm where your data lives and how it was resolved
-```
-
-Your data directory is resolved in this order: `--data-dir` → `PRM_HOME` → the user config `just install`
-wrote → `./prm-data/`. With nothing configured it stays repo-local, so `just demo` and dev runs never
-write outside the repo.
-
-## 3. Try the demo (no personal data)
-
-The fastest way to see it work is the built-in demo, which seeds a realistic **~1000-contact**
-database from the repo's *synthetic* fixtures — no personal data, nothing written outside the repo:
+The fastest way to see everything in this guide is the built-in demo — a realistic **~1000-contact**
+database seeded from the repo's *synthetic* fixtures, written only inside the repo:
 
 ```bash
 just demo             # = prm init --demo
+just serve            # then open the printed link
 ```
 
 ```
-PRM home ready at /…/prm/prm-data
 Demo seeded into /…/prm/prm-data/shared.db:
-Ingest imported: 1004 contacts from 4 file(s)
-  - …/google_takeout_bulk/…/All Contacts.vcf: 1000 · google_takeout (vcard, confidence override)
-  - …/apple_icloud/…/icloud-export.vcf: 4 · apple_icloud (vcard, confidence override)
-  - …/linkedin/…/Connections.csv: SKIPPED — CSV parser lands next (plan §11 M1)
-  - …/google_csv/…/contacts.csv: SKIPPED — CSV parser lands next (plan §11 M1)
-  by source: apple_icloud=4, google_csv=0, google_takeout=1000, linkedin=0
-  stable-id: email=904, hash=95, url=5  (325 name-less)
-  shared.db now holds 1001 record(s)
+Ingest imported: 1042 contacts from 5 file(s)
+  by source: apple_icloud=4, facebook=6, google_csv=10, google_takeout=1000, linkedin=21
+  stable-id: email=915, hash=103, url=23  (328 name-less)
+  shared.db now holds 1038 record(s)
 ```
 
-Now try `just search ada` and `just status` against it. This is exactly what you'll see against your
-own data — read [Step 5](#5-inspect-an-import-dry-run) for what each line means. (The CSV lines are
-skipped for now; that parser is the next increment.) When you're ready to import your *own* contacts,
-wipe this synthetic home first with `just clean-data` — see the note at [Step 6](#6-import-for-real).
+When you're ready to import your *own* contacts, wipe the synthetic home first with `just clean-data`
+(or keep them mixed in — they're harmless and `just status` shows the split by source).
 
-## 4. Export your contacts
+### 3. Get your exports from each service
 
-Download your contacts from each service. PRM reads the files **as they come** — no account
-credentials, no sync.
+PRM reads export files **as they come** — no account credentials, no sync:
 
-| Source | How to export | Usable today? |
-| --- | --- | --- |
-| **Google** | [takeout.google.com](https://takeout.google.com) → *Deselect all* → select **Contacts** → choose **vCard** → create export → download the `.zip` | ✅ yes |
-| **Apple iCloud** | Mac **Contacts** app → select all (`⌘A`) → **File ▸ Export ▸ Export vCard…** → one `.vcf`. (Or iCloud.com ▸ Contacts ▸ gear ▸ *Export vCard*.) | ✅ yes |
-| **LinkedIn** | **Settings & Privacy ▸ Data Privacy ▸ Get a copy of your data** → pick **Connections** → request → download the `.zip` (import the `.zip` directly — PRM pulls `Connections.csv` out of it) | ✅ yes |
-| **Google CSV** | [contacts.google.com](https://contacts.google.com) → **Export ▸ Google CSV** → one `.csv` | ✅ yes |
-| **Facebook** | **Settings ▸ Your information ▸ Download your information** → select **Friends and followers**, format **JSON** → request → import the `.zip` or the `friends.json` | ✅ yes |
+| Source | How to export |
+| --- | --- |
+| **Google** | [takeout.google.com](https://takeout.google.com) → *Deselect all* → select **Contacts** → choose **vCard** → create export → download the `.zip` |
+| **Apple iCloud** | Mac **Contacts** app → select all (`⌘A`) → **File ▸ Export ▸ Export vCard…** → one `.vcf`. (Or iCloud.com ▸ Contacts ▸ gear ▸ *Export vCard*.) |
+| **LinkedIn** | **Settings & Privacy ▸ Data Privacy ▸ Get a copy of your data** → pick **Connections** → download the `.zip` (import the `.zip` directly) |
+| **Google CSV** | [contacts.google.com](https://contacts.google.com) → **Export ▸ Google CSV** → one `.csv` |
+| **Facebook** | **Settings ▸ Your information ▸ Download your information** → select **Friends and followers**, format **JSON** → import the `.zip` or `friends.json` |
 
-You can keep these files anywhere. The repo has a gitignored staging folder, **`ignore-data/`**, that
-exists precisely so real exports can sit next to the code without any risk of being committed —
-handy while testing. Personal data is never committed (this is invariant **INV-1**, "private data
-stays on the device").
+Keep the files anywhere; the repo's gitignored **`ignore-data/`** folder exists precisely so real
+exports can sit next to the code with no risk of being committed (invariant **INV-1** — personal data
+is never committed, never leaves the device).
 
-## 5. Inspect an import (dry run)
+### 4. Install for daily use (the desktop app)
 
-Run `just dry-run` on a file (or folder) to parse it and print a report **without writing anything**:
+`just setup` is the **developer** path — data lives in `./prm-data/`. To use PRM every day:
+
+```bash
+just install          # interactive: pick a per-user data location, install `prm`, record it
+prm app               # a native desktop window — no browser tab (or: just app)
+```
+
+The wizard suggests a per-user data directory outside the repo (macOS:
+`~/Library/Application Support/PRM`; Linux: `~/.local/share/prm`), offers to **move** an existing
+`./prm-data/` there, installs `prm` with [pipx](https://pipx.pypa.io) as an editable install (offering
+to install pipx itself if needed), and records the location so `prm` finds it automatically. Because
+your data lives **outside** the source tree, updating never touches it — `git pull` and relaunch.
+`prm config --show` confirms where your data lives; the resolution order is
+`--data-dir` → `PRM_HOME` → the recorded config → `./prm-data/`.
+
+---
+
+## Part 1 — The workspace
+
+The workspace is the graphical app — where you'll browse, edit, tag, group, merge, and manage AI
+access. Start it and open the printed link (or use the desktop window):
+
+```bash
+just serve            # prints a session-keyed link (Ctrl-C or `just stop` to stop)
+just open             # opens that link — run in a second terminal
+prm app               # …or the native desktop window instead of a browser
+```
+
+The link carries a **one-time session key**, so the workspace is session-protected: other programs on
+your computer can't read your contacts through it — visiting a bare `http://127.0.0.1:8770/` without
+the key shows a short "open it from your terminal" page instead of your data. The daemon binds
+`127.0.0.1` only; your contacts are never reachable from the network (INV-1). **Browser navigation
+works normally** — Back/Forward retrace your steps through views, contacts, and groups.
+
+The sidebar footer has the live stats, **⚙ Diagnostics** (`?diag` — a sanitized dump for bug reports),
+**📖 User's guide** (this document), and **ⓘ About**.
+
+### Contacts — browse, search, inspect
+
+![The Contacts view: the browsable list on the left, a contact's fields with per-field provenance on the right.](img/users-guide/contacts.jpg)
+
+**Contacts** is home base: search or browse the full list, open any contact, and see every field with
+its **provenance** — which source each value came from (`google`, `apple`, a `user` tag where you
+overrode it, `gathered` where you accepted an AI suggestion). Search is prefix-matched across name,
+email, organization, and notes, and also matches your private tags and custom values — locally only
+(an AI's search never touches sealed data).
+
+Row markers tell you at a glance: `N×` (merged from N records), **🤖** (AI-gathered data waiting for
+your review), and `duplicate?` (a confident pending duplicate — see
+[Duplicates](#duplicates--find--merge)).
+
+### Edit a contact — notes, tags, photo, your fields
+
+![Edit mode: single-valued source fields, notes, the tag picker, the photo control, and any custom fields you defined.](img/users-guide/contact-edit.jpg)
+
+Open a contact and hit **✎ Edit**. Fix a single-valued field (a name, an org), write private
+**notes**, apply **tags**, set a **photo**, and fill in any custom fields you've defined. Everything
+you change is saved as a **layer on top of your imported records** — the import itself is never
+modified — so a re-import can't clobber your edits, and one **Undo** reverses a whole save. *(Editing
+multi-value fields — a contact's several emails/phones — is coming in a next increment.)*
+
+![The tag manager: each tag has a name and an optional description; add, rename, describe, remove.](img/users-guide/tags-manage.jpg)
+
+**Tags** come from a small vocabulary you manage — create one inline while tagging, or hit *Manage
+tags…* to curate names and descriptions. Tagged contacts are searchable by tag from the main search
+box, and the [Groups view](#groups--and-the-tags-browse) has a browse list of every tag with its count.
+
+**Photos**: if your import carried one it shows automatically — including **Google Takeout**, which
+ships photos as separate files that PRM matches back by name on import. Click the avatar (or use
+**Upload…**/**Remove** in Edit mode) to set your own; uploads are shrunk to a thumbnail in your browser
+before saving, stay on this device, and never reach a connected AI. Got a **folder of loose photos**?
+**＋ Match photos…** at the top of Contacts walks you through them one at a time, suggesting the likely
+contact from each filename — you click **Assign**, search for the right person, **Skip**, or mark
+**Not a contact**. Only assigned photos are saved.
+
+### Duplicates — find & merge
+
+![Bulk approve, step 1: pick the groups you trust — exact matches are pre-selected, name-based ones are opt-in.](img/users-guide/duplicates-bulk.jpg)
+
+**Duplicates** finds contacts that look like the same person and helps you merge them. (For what a
+merge actually does to the two stores, see **[How PRM's data works](explainers/how-prm-data-works.md)**,
+§3–4.) The toggle next to the title picks the mode:
+
+![Bulk approve, step 2: flip through the selected merges — the footer says plainly whether each card is ready, excluded, or still needs a pick.](img/users-guide/duplicates-spotcheck.jpg)
+
+- **Bulk approve** — for clearing many at once. Pick the **groups** you trust (*same email or phone*,
+  *AI-proposed* 🤖 — pre-selected; the weaker name-based groups are opt-in behind a confirm), then flip
+  through them (← → keys) to spot-check. Resolve any red field conflict inline, or **exclude** anything
+  that looks wrong — a card that still *needs a pick* when you merge is simply **left out of the
+  batch** and stays in the queue. The batch applies atomically: a single **Undo** reverses all of it.
+
+![Review individually: the merge preview for one pair — the conflicting name is picked by you, nothing is pre-selected.](img/users-guide/duplicates-review.jpg)
+
+- **Review individually** — walk the candidates one at a time, most-confident first. Multi-valued
+  fields (emails, phones) **combine**; a single-valued field that disagrees is flagged in red so **you
+  pick which to keep** — *Approve merge* stays locked until every conflict has a pick. Your three
+  choices are always **Approve merge**, **Not a duplicate** (dismissed for good), and **Skip** (decide
+  later).
+
+![A flagged contact announces its duplicate right on its page, with a one-click path into the review.](img/users-guide/contact-duplicate.jpg)
+
+- **You don't have to start from this tab.** A contact with a *confident* (or AI-proposed) pending
+  duplicate announces itself wherever you meet it: a `duplicate?` marker on its list row, a banner on
+  its page — *"⚠ Looks like the same person as … — Review & merge…"* — and a call-out inside any group
+  that holds both halves. Each takes you straight to the review card for exactly that pair. (Weak
+  name-only matches don't get the marker — on real data they'd flag half your contacts.)
+- **Your private data follows the merge.** Tags union, group memberships carry over, and if both
+  contacts had a note (or any single-valued field you authored), **both values are kept** — shown side
+  by side, never silently discarded — so you consolidate with one edit. A pending AI suggestion stays
+  pending; one you'd already accepted returns to *pending your review* on the merged contact.
+- Confident matches share an exact email, phone, or profile link; name-only matches are flagged and
+  **never merged automatically**. **↺ Undo last merge** reverses the most recent merge or batch.
+
+### Groups — and the tags browse
+
+![The Groups view: your groups with member counts, and below them the tag browse with per-tag counts.](img/users-guide/groups.jpg)
+
+**Groups** collects contacts into sets you define — "emergency contacts", "book club". **+ New group**
+takes a name and an optional note; open a group to see and edit its members — remove one, or **add
+contacts by searching** right there. On any contact's page the **Groups chips** show where it belongs,
+with **＋ Add to group** (which can also create a new group on the spot).
+
+![Inside a group: members, add-by-search — and if two members look like the same person, the group says so.](img/users-guide/group-detail.jpg)
+
+Groups are **private relationship data**: they live in your private store on this device, an AI can
+never create or change one, every change is reversible (**Undo**), and memberships survive both
+**merges** and **re-imports**. Deleting a group never touches the contacts in it. If a group ends up
+holding **two contacts that look like the same person**, it calls that out with a **Review & merge…**
+link — a group is never a merge surface itself, but it points you at the real one. The same view hosts
+the **Tags browse**: every tag with its description and contact count — click one to see its contacts.
+*(Coming next: filter the Contacts list by group, bulk-add many contacts at once, and export a single
+group as a vCard.)*
+
+### Schema — design your own fields
+
+![The Schema view: the built-in fields plus your own, each showing its kind and sealed/shareable state.](img/users-guide/schema.jpg)
+
+**Schema** is where you design your own relationship fields. The built-ins (`photo`/`tags`/`notes`)
+are always there; **+ New field** adds your own — pick a **kind** (text, long text, number, date,
+checkbox, single/multi-select, URL), give selects their options, mark it *required* if you like.
+
+![Defining a field: kind, options, AI-write policy, and the disclosure tier — private and sealed by default.](img/users-guide/schema-field.jpg)
+
+Every field is **private and sealed by default** — it never reaches a connected AI unless you later
+mark it shareable — and appears on every contact's Edit form the moment you create it. You can edit or
+remove your own fields (removal drops the field's values but is reversible by **Undo**); built-ins
+can't be removed. The schema is authored **only here** — an AI can never invent or change your fields
+(INV-3). *(Per-field AI-write policy is enforced for direct writes today; the full write-tier surface
+matures in a later increment.)*
+
+### Data — import & export, no terminal
+
+![The Data view: drag in a file or folder, preview exactly what would be imported, then confirm — or download an export.](img/users-guide/data.jpg)
+
+**Data** is the point-and-click counterpart to `prm import` / `prm export`. **To import**, drag a file
+or folder onto the page — or **Choose file…** / **Choose folder…** — for any supported export (vCard,
+Takeout `.zip`, LinkedIn, Google CSV, Facebook, or a PRM `--raw` backup). PRM reads the files
+**locally**, shows the same preview the terminal does (contacts per file, detected source +
+confidence, the stable-id breakdown), and saves **only after you confirm**. A low-confidence source
+can be relabeled before importing; unrecognized files are listed as **skipped**, never silently
+dropped. **To export**, download your merged contacts as a portable **vCard** or a lossless **backup**
+you can re-import — see [exports, in depth](#export--portable-vcard-or-lossless-backup).
+*(Re-importing an updated export with a change preview is still the terminal's `just reimport` — it's
+coming to the workspace next.)*
+
+### External Access — AI, consent, and the data-floor
+
+![External Access: the Baseline (your two databases, what's enforced, the data-floor) above the Current Access Exceptions.](img/users-guide/access.jpg)
+
+**External Access** is where you control what any AI can see, and see what it has seen. The page reads
+top-down as **Baseline** (the default posture: your two databases, what's enforced for each, and the
+**data-floor** — sealed fields never cross, only fields you mark *shareable-on-consent* can) above
+**Current Access Exceptions** (everything you've granted on top).
+
+![The consent gate: local model (data stays) vs cloud model (data leaves — the EX-CLOUD-LLM exception), with the blast radius shown first.](img/users-guide/access-gate.jpg)
+
+**Grant AI access…** opens the gate: pick **Local model — data stays on this device** (no exception)
+or **Cloud model — data leaves this device**, which raises the **`EX-CLOUD-LLM`** exception and shows
+a persistent *"not a PNA right now"* banner until you return. Before anything is shared you see the
+**blast radius** — which fields, across how many contacts. Return to local-only mode anytime with one
+click (it stops future sharing; it can't recall data already sent). For tighter control, turn on
+**"Require my approval for each AI read"** — every read of a contact's shareable fields is then held
+for your per-contact **Approve**/**Deny**. The exceptions list itemizes every approved contact — the
+fields, when you approved it, when an AI last read it — each with its own **Revoke**. The
+**Connections** card shows the last AI read with the serving **build** (catching an AI client running
+a stale server), and **Test MCP servers** probes the registered servers on demand. Full screenshot
+tour: **[AI reads & writes](explainers/ai-reads-and-writes-walkthrough.md)** (Part 1).
+
+### Let an AI propose merges — and gather data (optional)
+
+An AI assistant can do the dedup legwork: it scans for duplicates and **proposes** merges, which land
+in the Duplicates tab tagged **🤖 AI proposal** for you to approve or reject — the AI can only
+*propose*, never apply. Setup is two steps (details in [`../mcp_servers/README.md`](../mcp_servers/README.md)):
+
+1. **Register the MCP servers** with your MCP client (e.g. Claude Desktop): `just mcp-install` does it
+   in one step. The dedup flow uses `prm-shared-data` (read) + `prm-dedup` (propose). A third server,
+   `prm-private-data`, lets an AI write values into fields you've marked AI-writable and file
+   **gathered observations** (e.g. a phone for a name-only Facebook contact) — additive, attributed,
+   and policy-gated (every field is sealed + review-required by default).
+2. **Hand the assistant the dedup prompt** in
+   [`../mcp_servers/prompts/dedup.md`](../mcp_servers/prompts/dedup.md) — paste or attach it; it is
+   not auto-loaded.
+
+Gathered observations appear on the contact under **"Gathered — pending your review"**: **Accept**
+folds one into your view as a reversible private override (your imported records are never changed),
+**Reject** dismisses it for good, or leave it to decide later; the 🤖 row marker flags contacts with
+data waiting. Nothing is ever folded in until *you* accept it — there is no AI "promote" path. **A
+local AI is recommended** for anything touching private data; the consent gate above makes the choice
+explicit either way. (The three AI-write flavors are explained in
+**[How PRM's data works](explainers/how-prm-data-works.md)**, §5.)
+
+### What the workspace can't do yet
+
+Being honest about the gaps (each is tracked on the [Roadmap](roadmap.md) unless noted):
+
+- **Re-import an updated export** with a change preview — use `just reimport` (Part 2) for now.
+- **Edit multi-value fields** (several emails/phones on one contact).
+- **Group operations** — filter Contacts by a group, bulk-add many contacts, export one group.
+- **Create a brand-new contact** or **delete one** — PRM mirrors your sources today; user-authored
+  contacts and tombstones are a planned follow-on.
+- **Seed the demo** — that's `just demo` in the terminal.
+- **Back up your private store** (notes/tags/groups/photos) — the raw backup covers your mirrored
+  contacts; a private-store backup is a separate, later feature. (The private store *is* plain files
+  under your PRM home if you want to copy them yourself — see
+  [Where your data lives](#where-your-data-lives).)
+
+---
+
+## Part 2 — The command line
+
+Everything below reads and writes the same PRM home as the workspace. The `just` recipe is given
+first; each is a thin wrapper over the `prm` command shown in the comment.
+
+### Inspect an import (dry run)
 
 ```bash
 just dry-run ~/Downloads/takeout-20260603.zip          # = prm import … --dry-run
@@ -222,408 +390,168 @@ Ingest DRY RUN — nothing written: 4 contacts from 1 file(s)
   stable-id: email=4  (1 name-less)
 ```
 
-How to read it:
-
-- **per-file line** — `count · source (format, confidence)`. PRM detects the *format* and infers a
-  *source* label (e.g. `apple_icloud`, `google_takeout`) with a confidence. A bare `.vcf` with no
-  tell-tale markers shows as `vcard` / low confidence.
-- **by source** — totals grouped by the inferred source.
-- **stable-id** — how each contact got its durable identity (most sources carry no `UID`, so PRM
-  falls back): `uid` → `email` → `url` → `hash` (a content hash, the last resort for the thinnest
-  records). `… name-less` counts contacts that had no name at all (common in real exports).
-
-Useful flags pass straight through the `just` recipes, and you can hand over **many paths at once** —
-either a **folder** (PRM recurses into it) or a shell **glob** like `*` (your shell expands it to a
-list, and PRM handles each entry):
+How to read it: the **per-file line** is `count · source (format, confidence)` — PRM detects the
+*format* and infers a *source* label (`apple_icloud`, `google_takeout`, …); a bare `.vcf` with no
+tell-tale markers shows as `vcard`/low. **stable-id** shows how each contact got its durable identity
+(most sources carry no `UID`, so PRM falls back): `uid` → `email` → `url` → `hash`; *name-less* counts
+contacts with no name at all (common in real exports). You can pass a **folder** (PRM recurses) or a
+shell **glob**, and `--json` gives machine-readable output:
 
 ```bash
-just ingest contacts.vcf --source apple_icloud  # override the inferred source label
-just dry-run ~/Downloads/                        # a folder — PRM walks it, previewing every recognized file
-just dry-run ~/Downloads/exports/*               # a glob — preview every export dumped loose in one folder
-just dry-run takeout.zip --json                  # machine-readable output (for scripts / the AI surface)
+just dry-run ~/Downloads/                        # a folder — every recognized file previewed
+just dry-run ~/Downloads/exports/*               # a glob — every export dumped loose in one folder
+just dry-run takeout.zip --json                  # for scripts / the AI surface
 ```
 
-## 6. Import for real
-
-> **Coming from the demo?** Your PRM home still holds the ~1000 synthetic demo contacts. Run
-> `just clean-data` to wipe `./prm-data/` before importing your own, or keep them mixed in — they're
-> harmless and `just status` shows the split by source.
-
-Use `just ingest` to save into your PRM home's `shared.db`:
+### Import
 
 ```bash
-just ingest ~/Downloads/takeout-20260603.zip           # = prm import … (no --dry-run)
+just ingest ~/Downloads/takeout-20260603.zip           # = prm import …
+just ingest contacts.vcf --source apple_icloud         # override the inferred source label
 ```
 
-In an interactive terminal it shows the preview and prompts `Proceed with import? [y/N]`. Append
-`--non-interactive` (or `--json`) for unattended runs that never prompt. The same command ends with
-`shared.db now holds N record(s)`.
+Interactive runs show the preview and prompt `Proceed with import? [y/N]`; `--non-interactive` (or
+`--json`) never prompts. Importing is **idempotent** — the same file again updates rather than
+duplicates — and sources accumulate into one home (a Takeout `.zip`, then an Apple `.vcf`, …).
 
-Re-running an import is **safe and idempotent** — each contact gets a stable identity, so importing
-the same file again updates rather than duplicates. You can import several sources into one home
-(e.g. a Google Takeout `.zip` and then an Apple `.vcf`) and they accumulate together. The same path
-rules as Step 5 apply — point `just ingest` at a folder, or glob a folderful of loose exports at once:
-
-```bash
-just ingest ~/Downloads/exports/*               # import every export in that folder in one go
-```
-
-### Re-importing an updated export
-
-When you re-download an export later (more contacts, edits, deletions), use **`just reimport`** to see
-exactly what would change before committing (for *why* a re-import can't clobber your edits or merges, see
-**[How PRM's data works](explainers/how-prm-data-works.md)**, §2):
+### Re-import an updated export
 
 ```bash
 just reimport ~/Downloads/takeout-20260820.zip --source google_takeout --dry-run   # preview only
-just reimport ~/Downloads/takeout-20260820.zip --source google_takeout             # preview, then confirm
+just reimport ~/Downloads/takeout-20260820.zip --source google_takeout             # preview → confirm
 ```
 
-It reports, per source, how many records are **new**, **updated**, **unchanged**, and **stale** (in
-your store but no longer in the export). Pass `--source` so it compares against the right source.
-It is **non-destructive**: stale records are **kept** (just flagged), and **your merge decisions are
-preserved** (re-attached by stable identity — invariant **INV-6**). Before applying it takes a
-snapshot and records the re-import in the audit log. `--non-interactive` applies without prompting.
+Reports, per source, what's **new / updated / unchanged / stale** (in your store but no longer in the
+export) before committing. **Non-destructive**: stale records are kept (flagged), and your merge
+decisions are preserved — re-attached by stable identity (INV-6). A snapshot precedes it; the audit
+log records it. (Why a re-import can't clobber your edits:
+**[How PRM's data works](explainers/how-prm-data-works.md)**, §2.)
 
-## 7. Check status
+### Status and search
 
 ```bash
-just status
+just status           # the home, record + identity counts, per-source split, last import
+just search "ada"     # prefix-matched across name/email/org/notes; --limit N; --json
 ```
 
-```
-PRM home: /…/prm/prm-data (exists)
-  shared.db: 997 record(s), 997 distinct identities (schema v1)
-    by source: google_takeout=997
-    last import: 2026-06-04T05:51:09Z
-```
-
-(1000 parsed → 997 stored above means three records shared an identity and were merged — exactly
-what de-duplication will refine later.)
-
-## 8. Search your contacts
+### Export — portable vCard, or lossless backup
 
 ```bash
-just search "ada"
-just search "navy" --limit 50
-just search "lovelace" --json
+just export --out contacts.vcf        # merged contacts as vCard 3.0 (Google/Apple/Outlook import it)
+just export --raw --out backup.json   # every raw record + provenance, re-importable losslessly
 ```
 
-Search is **prefix-matched** across name, email, organization, and notes, so `lovel` finds
-`Lovelace`. Output is one contact per line (`name · email · org`); `--json` gives a structured list.
-The same data is also browsable in the local web workspace — see the next section.
+The **vCard** is the *merged* view — one card per person, multi-valued fields unioned, your dedup
+choices applied — a **portability** export (re-importing it creates fresh records). The **`--raw`
+backup** is the true round-trip: re-importing rebuilds the same records with the same identities
+(`just ingest backup.json`). It covers the **mirrored contacts store**; private-store data (notes,
+tags, groups) lives separately — see the gap list below.
 
-## 9. The web workspace — browse, and merge duplicates
-
-For a point-and-click view, start the local workspace (seed or import data first — `just demo`):
+### Serve, stop, doctor, config
 
 ```bash
-just serve                     # serve the workspace; prints a session-keyed link to open (Ctrl-C to stop)
-just open                      # open that link in your browser — run in a second terminal (uses the server's key)
-just serve 9000                # pick a different port → http://127.0.0.1:9000
-just stop                      # stop a server running in another terminal (just stop 9000 for that port)
-just app                       # …or skip the browser: open it as a native desktop window (see “Install for daily use”)
+just serve            # the workspace server (prints the session link);  just serve 9000 for a port
+just open             # open the running server's link in your browser
+just stop             # stop it cleanly from another terminal (just stop 9000 for that port)
+prm doctor            # sanitized diagnostics: store stats, lock state, build label — no contact data
+prm doctor --unlock   # clear a stale home lock (refuses while a PRM process is live)
+prm config --show     # where your data lives and how the location was resolved
+just mcp-install      # register the MCP servers with your AI client (backs up its config first)
 ```
 
-If the port is already taken, `just serve` doesn't crash — it tells you **the port is already in use**
-and exits, suggesting `just stop` (or a different port). `just stop` shuts the workspace server down
-cleanly from another terminal (it asks the server to stop, and only force-kills if it won't).
+If the port is taken, `just serve` says so and exits (it never kills anything); `just port`
+force-frees a port a *crashed* run left stuck.
 
-The link `just serve` prints carries a **one-time session key**, so the workspace is session-protected:
-other programs on your computer can't read your contacts through it. Open that link directly, or run
-`just open` in a second terminal (it reads the running server's key). Visiting a bare
-`http://127.0.0.1:8770/` without the key just shows a short "open it from your terminal" page instead of
-your data.
+### What the CLI can't do
 
-It serves a small single-page app. **Contacts** lets you **search, browse the full list, and open any
-contact** to see its fields and **per-field provenance** (which source each value came from). It reads
-the same home, so import (or `just demo`) first; if there's no database yet it says so (with a button
-that takes you straight to importing). The sidebar footer also has an **About** card (next to
-Diagnostics) describing what PRM is and linking to the
-upstream [Personal Network Toolkit](https://github.com/richbodo/personal_network_toolkit).
-
-### Data — import & export, no terminal
-
-The **Data** tab is the point-and-click counterpart to `prm import` / `prm export`. **To import,** drag a
-file or folder onto the page — or use **Choose file…** / **Choose folder…** — for any supported export
-(vCard, Google Takeout `.zip`, LinkedIn, Google CSV, Facebook, or a PRM `--raw` backup). PRM reads the
-files **locally** (nothing leaves your device), then shows the same **preview** the terminal does — how
-many contacts per file, the detected source and confidence, and the stable-id breakdown — and saves
-**only after you confirm**. If a source is detected with low confidence you can override its label before
-importing, and any unrecognized file is listed as **skipped** rather than silently dropped. **To export,**
-download your **merged contacts** as a portable **vCard** (to move into another app) or a lossless
-**`--raw` backup** you can re-import. (Re-importing an *updated* export with a change preview is still the
-terminal's `just reimport` for now — coming to the workspace next.)
-
-Open a contact and hit **✎ Edit** to correct a single-valued field (a name, an org), add private
-**notes**, set a **photo**, or apply **tags**. Your changes are saved as a **layer on top of your imported
-records** — the import itself is never modified — so a re-import can't clobber them, every edit is
-**reversible** (one **Undo** reverses a whole save), and the field shows a `user` provenance tag where you
-overrode the source. **Tags** come from a small **vocabulary you manage** (each tag has a name and an
-optional description; create one inline while tagging, or hit *Manage tags…* to curate them); tagged
-contacts are **searchable by tag** from the same search box. A contact's **photo** is its avatar: if your
-import already carried one it shows automatically — including **Google Takeout**, which ships each
-contact's photo as a *separate image file* that PRM matches back to the right person by name on import
-(only some contacts in a Takeout export carry a photo, so don't expect every avatar to fill in). To set
-or change a photo, just **click the avatar** on a contact and pick an image — or use **Upload…** /
-**Remove** in Edit mode (an upload overrides the import). Your images stay on the device and never reach a
-connected AI (uploads are shrunk to a thumbnail in your browser before they're saved, so even a big photo
-stays small). Imported photos ride along in a `--raw` backup, so it stays a
-lossless round-trip; an uploaded photo, like your tags and notes, is private-store data (a full
-private-store backup is a separate, later feature).
-
-Got a **folder of loose photos** (headshots, photos from another app) you want to attach? Hit
-**＋ Match photos…** at the top of Contacts and pick the folder. PRM reads the images locally and walks
-you through them **one at a time**, **suggesting the contact** each photo probably belongs to (from the
-filename — it handles names, emails, nicknames, accents) so you usually just click **Assign**; otherwise
-**search** for the right person, **Skip**, or mark **Not a contact**. Nothing leaves your device — only
-the photo you assign is saved. Editing multi-value fields (emails, phones) is coming
-in the next increments.
-
-**Schema** is where you **design your own relationship fields**. The built-in `photo`/`tags`/`notes` are
-always there; hit **+ New field** to add your own — pick a **kind** (text, long text, number, date,
-checkbox, single- or multi-select, URL), give selects their options, and set whether it's *required*.
-Every field is **private and sealed by default** (it never reaches a connected AI unless you later mark
-it shareable). A field you define **immediately appears on every contact's Edit form**, ready to fill
-in. You can edit or remove your own fields (removing one drops its values, but it's **reversible** by
-**Undo**); the built-ins can't be removed. The schema is authored **only here in the workspace** — an
-AI can never invent or change your fields (INV-3). *(Per-field AI-write controls and a shareable-data
-review surface are columns on each field today; their full enforcement lands in a later increment.)*
-
-**Groups** is where you collect contacts into sets you define — "emergency contacts", "book club",
-"holiday card list". Hit **+ New group** (a name plus an optional note), open a group to **see and edit
-its members** — remove one, or **add contacts by searching** right there — and on any contact's page the
-**Groups chips** show where it belongs, with an **＋ Add to group** control (which can also create a new
-group on the spot). Groups are **private relationship data**: they live in your private store on this
-device, an AI can never create or change one, and every change is reversible (**Undo**) and survives both
-**merges** (a merged contact keeps its memberships) and **re-imports**. Deleting a group never touches
-the contacts in it. If a group ends up holding **two contacts that look like the same person** (a
-confident or AI-proposed duplicate), the group calls it out with a **Review & merge…** link — a group is
-never a merge surface itself, but it will point you at the real one. The same view hosts a **Tags
-browse**: every tag in your vocabulary with its description and how many contacts carry it — click one
-to see those contacts, or jump into *Manage tags…* from there. *(Coming next: filter the Contacts list by group, bulk-add many contacts at once, and
-export a single group as a vCard.)*
-
-(To stop the server, use `just stop` — or `Ctrl-C` in the terminal running it. If a *crashed* run left
-the port stuck, `just port` force-frees it.)
-
-**Duplicates** finds contacts that look like the same person and helps you merge them. (For what a merge
-actually does to the two stores — and how the clean, de-duplicated contact you see is assembled from your
-raw records — see **[How PRM's data works](explainers/how-prm-data-works.md)**, §3–4.) It offers two
-modes (toggle at the top):
-
-- **Review individually** — walk the candidates one at a time, most-confident first. Each is shown as a
-  side-by-side **merge preview**: multi-valued fields (emails, phones) **combine**; a single-valued
-  field that disagrees (like a name) is flagged so **you pick which to keep** — nothing is pre-selected.
-  **Approve merge** to combine them, **Not a duplicate** to dismiss it (it won't come back), or **Skip**.
-- **Bulk approve** — for clearing many at once. Pick the **groups** you trust (all *same email or phone*,
-  all *AI-proposed* 🤖, …; the confident and AI groups are pre-selected, the weaker name-based groups are
-  opt-in behind a confirm), then **flip through them** (← → keys) to spot-check — resolving any field
-  conflict inline and **excluding** anything that looks wrong — and **merge the whole set in one click**.
-  The batch applies atomically, so a single **Undo** reverses all of it.
-- In both modes: confident matches share an exact email or phone; weaker, name-only matches are flagged
-  and never merged automatically. **Undo last merge** reverses the most recent merge (or the last batch).
-- **You don't have to start from this tab.** A contact with a *confident* (or AI-proposed) pending
-  duplicate announces itself wherever you meet it: a small **`duplicate?` marker** on its row in the
-  contacts list, a banner on its page — *"⚠ Looks like the same person as … — Review & merge…"* — and,
-  if a group happens to hold both halves, a call-out inside that group. Each takes you straight to the
-  review card for exactly that pair. (Weak name-only matches don't get the marker — on real data they'd
-  flag half your contacts; they stay here in the Duplicates tab.)
-- **Your private data follows the merge.** Tags union, group memberships carry over, and if both
-  contacts had a note (or any single-valued field you authored), **both values are kept** on the merged
-  contact — shown side by side, never silently discarded — so you can consolidate them with one edit.
-  An AI-gathered suggestion that was pending stays pending; one you had already accepted returns to
-  *pending your review* on the merged contact.
-
-Two guarantees worth knowing:
-
-- **Local only.** The daemon binds `127.0.0.1` — never reachable from the network — and **session-protects
-  its API** (a per-process key in the link it prints, plus a Host/Origin guard), so other programs on your
-  computer can't read your contacts through the workspace. Your contact data does not leave the device
-  (invariant **INV-1**). Stop the daemon with `Ctrl-C`. *(One honest limit: your data is stored in ordinary
-  files on disk, so any program running as **your user account** — including an OS-level automation/AI agent
-  you've granted that access — can read them directly. See [Privacy](#privacy).)*
-- **Reversible & non-destructive.** Your imported source records are never changed; a merge is a
-  decision layered on top, snapshotted before it's applied, and undoable.
-
-### Let an AI propose the merges (optional)
-
-An AI assistant can do the reviewing legwork: it scans for duplicates and **proposes** merges, which
-show up in this same Duplicates tab tagged **🤖 AI proposal** for you to approve or reject. The AI can
-only *propose* — it can never apply a merge. (See it end to end, with screenshots, in
-**[AI reads & writes — a visual walkthrough](explainers/ai-reads-and-writes-walkthrough.md)**, "Dedup —
-the AI proposes, you dispose.")
-
-Set this up in two steps, both detailed in [`../mcp_servers/README.md`](../mcp_servers/README.md):
-
-1. **Register the MCP servers** with your MCP client (e.g. Claude Desktop) — `just mcp-install` does it in
-   one step (backs up your config, then merges them in), or wire them up by hand. The dedup flow uses
-   `prm-shared-data` (read) and `prm-dedup` (propose). `just mcp-install` now also registers a third server,
-   `prm-private-data`, which lets an AI **write values** into fields you mark AI-writable, and **gather
-   missing contact fields** (e.g. a phone for a name-only Facebook contact) as additive, attributed
-   **observations** — a newer, policy-gated capability (every field is sealed + review-required by default).
-   Gathered observations show on a contact under **“Gathered — pending your review”**, where you
-   **Accept** each one (it folds into your view as a reversible private override — your imported records are
-   never changed), **Reject** it (dismissed for good), or just leave it to decide later; a 🤖 marker on the
-   contact list flags whoever has gathered data waiting. Nothing is ever folded in until *you* accept it
-   (there is no AI “promote” path). You won't need any of this for dedup. (The three AI-write flavors —
-   dedup proposals, custom-field writes, and gathered observations you promote — are explained in
-   **[How PRM's data works](explainers/how-prm-data-works.md)**, §5.)
-2. **Hand the assistant the dedup prompt** in [`../mcp_servers/prompts/dedup.md`](../mcp_servers/prompts/dedup.md)
-   — paste its contents (or attach the file) into the session; it is **not** auto-loaded. It drives the
-   scan → clarify → propose loop; every proposal still lands here in the Duplicates tab for you to apply.
-
-**A local AI is recommended**, and PRM now makes the choice explicit. Open the **External Access** tab to
-grant access: pick **Local model — data stays on this device** (no exception) or **Cloud model — data leaves
-this device** (which raises the `EX-CLOUD-LLM` exception and shows a persistent "not a PNA right now"
-banner until you return to local-only mode). Before anything is shared you see the **blast radius** — which
-fields, across how many contacts — and a **data-floor** guarantee: fields you keep *sealed* (the default
-for every relationship field) **never** reach an AI, and *shareable* fields cross **only** after you
-consent here. Your private notes, and any field you haven't marked shareable, stay on the device
-regardless. Return to local-only mode anytime with one click (it stops future sharing — it can't recall
-data already sent). For tighter control, turn on **"Require my approval for each AI read of private data"**:
-while it's on, an AI's read of a contact's shareable fields is **held for your approval** — each request
-shows up in **External Access** to **Approve** (readable for this session) or **Deny**, one contact at a
-time. The same tab opens with a plain-language map of your **two databases** — your mirrored **contacts**
-(`shared.db`) versus the **private notes and fields you author** (`relationships.db`) — and exactly what's
-enforced for each. The page is organized as **Baseline** (the default access floor) above **Current Access
-Exceptions** (everything granted on top), so you can always see *what access external systems have*: the
-exceptions list itemizes **every contact you've approved** — which fields, when you approved it, and when an
-AI **last read** it — each with its own **Revoke** button (revoking one leaves the rest, unlike *Return to
-PNA* which clears them all). The **Connections** card shows that last AI read together with the **build** of
-the server that served it, and warns if it differs from the app's build — a quick way to catch an AI client
-still running an **old MCP server** after an update (fully quit and reopen it). A **Test MCP servers** button
-there checks the registered servers are **responsive** and reports their build alongside the build the
-running server last served from — so you can confirm everything's current at a glance. For a screenshot
-tour of this whole tab — the consent gate, the local-vs-cloud paths, the data-floor, per-read approval,
-the exceptions ledger, and returning to PNA mode — see
-**[AI reads & writes — a visual walkthrough](explainers/ai-reads-and-writes-walkthrough.md)** (Part 1).
-Background: [`../mcp_servers/README.md`](../mcp_servers/README.md) and the [Roadmap](roadmap.md).
+- **Relationship data is workspace-only, by design**: notes, tags, groups, photos, custom fields, and
+  merging all happen in the workspace — the schema and your curation deliberately have one authoring
+  surface (INV-3), so there are no CLI commands for them.
+- **No dedup from the terminal** — reviewing merges is inherently visual; the CLI's job ends at
+  getting records in and out.
+- If you'd want any of these anyway, open an issue — the honest gap list is the point of this section.
 
 ---
 
-## 10. Export your contacts
+## Part 3 — Concepts & reference
 
-Your contacts are yours — take them anywhere, or keep a backup. `just export` does both, in two modes.
+### Where your data lives
 
-**Portable vCard (the default) — to move contacts into another app.** Writes your **merged** contacts
-(de-duplicated, with the conflict choices you made during dedup applied) as a **vCard 3.0** (`.vcf`) —
-the format Google, Apple, and Outlook all import:
-
-```bash
-just export --out contacts.vcf        # = prm export --out contacts.vcf
-just export                           # write to stdout instead (pipe it elsewhere)
-```
-
-One card per person: multi-valued fields (emails, phones) are **unioned** across the sources a contact
-came from, and for any single-valued field you reconciled, the value **you chose** is the one written.
-This is the *merged* view, so re-importing it back **into** PRM creates fresh records rather than
-re-attaching — it's a portability export, not a backup. For that, use `--raw`.
-
-**Lossless backup (`--raw`) — a re-importable copy of everything.** Writes a JSON file holding **every
-raw record exactly as stored** — its source, stable identity, fields, and per-field provenance, with
-nothing merged or dropped:
-
-```bash
-just export --raw --out backup.json   # = prm export --raw --out backup.json
-```
-
-Re-importing that file rebuilds the same records with the same identities (`just ingest backup.json`),
-so it's a true round-trip — ideal as a periodic backup of your mirrored contacts. (It backs up the
-**raw contacts store**; your private merge decisions live separately in `relationships.db`.)
-
-Both modes read the same PRM home as everything else, so import (or `just demo`) first.
-
----
-
-## Where your data lives
-
-Everything for one instance lives under a single **PRM home** directory. PRM finds it in this order:
-
-1. `--data-dir DIR` on the command line,
-2. the `PRM_HOME` environment variable,
-3. otherwise `./prm-data/` in the current directory (the default — **demo mode never writes outside
-   the repo**).
-
-The home will hold all of an instance's stores:
+Everything for one instance lives under a single **PRM home** directory, resolved in this order:
+`--data-dir` on the command line → the `PRM_HOME` environment variable → the location `just install`
+recorded → `./prm-data/` in the repo (the default, so demo/dev runs never write outside it).
 
 ```
 prm-data/
-  shared.db          # mirrored contacts (read-only at runtime)
-  relationships.db   # your private relationship data + merge decisions (local-only)
+  shared.db          # mirrored contacts (read-only at runtime; only an import writes it)
+  relationships.db   # your private data: notes/tags/groups/fields + merge decisions (local-only)
   media/             # content-addressed contact images (local-only)
   proposals/         # staged AI change-sets awaiting your review
-  snapshots/         # pre-change backups
-  audit.log.jsonl    # append-only log of applied changes
+  snapshots/         # pre-change backups (what Undo restores)
+  audit.log.jsonl    # append-only log of every applied change
 ```
 
-(`shared.db` is created on your first import. `relationships.db` (the private store, renamed from
-`private.db` in v0.2 — an existing home is migrated automatically on first run), `proposals/`, and
-`audit.log.jsonl` arrive with the private-overlay and dedup milestones.)
+The **two databases** are the architecture in one sentence: `shared.db` is the disposable,
+re-mirrorable copy of what your sources say; `relationships.db` is the sovereign layer you author,
+which no import, re-import, or AI can overwrite. (The full picture, illustrated:
+**[How PRM's data works](explainers/how-prm-data-works.md)**.)
 
-## Privacy
+### Privacy
 
-- **Local-only by design.** Your contacts and any private notes never leave your device (**INV-1**).
+- **Local-only by design.** Your contacts and private data never leave your device (**INV-1**). The
+  one sanctioned exception is connecting a **cloud** AI — and only through the explicit, reversible
+  consent gate in [External Access](#external-access--ai-consent-and-the-data-floor).
 - **Real exports are never committed.** Drop them in `ignore-data/` (gitignored) or anywhere outside
-  the repo. The committed test data is entirely synthetic.
-- The mirrored contacts store is **read-only at runtime** — only a deliberate, user-run import
-  changes it.
-- **Other programs on your computer.** The workspace API is session-protected, so another local program
-  can't read your contacts by calling it. But your data lives in ordinary files under your PRM home
-  (`shared.db`, `relationships.db`, `media/`), which **any process running as your user account can read
-  directly** — an operating-system boundary PRM can't close from inside the app. This matters more as
-  people run **OS-level automation or AI agents** (which often act with your full access, and may be
-  cloud-backed): treat any such agent as having access to your contacts. To harden, run those agents only
-  if you trust them, keep your disk encrypted, or run PRM under a separate OS user account. (Background:
+  the repo. All committed test data is synthetic.
+- The mirrored contacts store is **read-only at runtime** — only a deliberate, user-run import writes it.
+- **Other programs on your computer.** The workspace API is session-protected, so another local
+  program can't read your contacts through it. But your data lives in ordinary files under your PRM
+  home, which **any process running as your user account can read directly** — an operating-system
+  boundary PRM can't close from inside the app. This matters more as people run **OS-level automation
+  or AI agents** (which often act with your full access and may be cloud-backed): treat any such agent
+  as having access to your contacts. To harden: run only agents you trust, keep your disk encrypted,
+  or run PRM under a separate OS user account. (Background:
   [`design-notes/local-daemon-trust-surface.md`](design-notes/local-daemon-trust-surface.md).)
 
-## Troubleshooting
+### Troubleshooting
 
 - **`ModuleNotFoundError: vobjectx`** — run `just setup` (it installs it), or `pip install vobjectx`.
-  If you already have the older `vobject`, PRM uses it automatically.
+  The older `vobject` is used automatically if present.
 - **A file is "SKIPPED" as unrecognized** — PRM imports vCard (`.vcf`), Google Takeout (`.zip`),
   LinkedIn (`.zip`/`Connections.csv`), Google CSV (`.csv`), Facebook friends (`.zip`/`.json`), and its
-  own raw backup (`.json` from `just export --raw`). Other files in an export folder are ignored. **Note:** a Facebook friend is just a *name and the
-  date you connected* — no email or phone — so those contacts are intentionally thin.
+  own raw backup (`.json`). Other files in an export folder are ignored. A Facebook friend is just a
+  *name and connection date* — no email or phone — so those contacts are intentionally thin.
 - **`prm: command not found`** — the `just` recipes don't need `prm` on your PATH (they run `./.venv`
-  directly), so prefer `just serve`, `just search`, and so on. To use `prm` itself, run `just shell`
-  (activates the venv) or `source .venv/bin/activate`; or run `python3 -m cli …` from the repo root.
-- **Something's wrong / filing a bug** — run `prm doctor` (or open the workspace at `?diag`) for a
-  **sanitized** diagnostic dump (store stats, lock state, your build `<date>-<sha>` — **no contact data**)
-  you can paste into a bug report. `prm doctor --unlock` clears a stale home lock (it refuses while a PRM
-  process is actually running, so it can't create two writers).
+  directly). To use `prm` itself: `just shell`, or `source .venv/bin/activate`, or `python3 -m cli …`.
+- **The workspace port is stuck** — `just stop` shuts a running server down cleanly; `just port`
+  force-frees a port a crashed run left held.
+- **Filing a bug** — `prm doctor` (or the workspace's **⚙ Diagnostics** / `?diag`) prints a
+  **sanitized** dump — store stats, lock state, the build label `<date>-<sha>`, **no contact data** —
+  to paste into the report.
 
-## What's next
+### What's next
 
-All five source parsers, the local **web workspace**, **find-&-merge deduplication** (review
-one-at-a-time **or bulk-approve by group**, reconcile, undo), **AI-proposed merges over MCP** (the AI
-proposes; you approve), opt-in **non-destructive re-import** (`just reimport`), and **export** (a
-portable vCard plus a lossless `--raw` backup, `just export`) are done. The last v0.1 step is the `Architecture.md`
-conformance attestation (the toolkit reference-design deliverable); then v0.2 brings the private overlay
-(groups, tags, notes) and a custom relationship schema. See the [Roadmap](roadmap.md).
+The near-term increments, in rough order (the [Roadmap](roadmap.md) owns the full plan): **group
+operations** (filter/bulk-add/export a group), the **read-only MCP group tools** (an AI can answer
+"who's in my book club" — never change it), **workspace re-import**, and **multi-value field
+editing**. After that, v0.3 begins **delegated gathering** — an AI doing daily public-data checks over
+a group you choose, filing everything as reviewable observations.
 
----
+### References
 
-## References
-
-Key documents in this repo:
-
-- **Illustrated explainers** (accessible tours, with screenshots of every juncture):
-  **[How PRM's data works](explainers/how-prm-data-works.md)** — mirroring, the de-duplicated view, dedup,
-  and AI writes; and **[AI reads & writes — a visual walkthrough](explainers/ai-reads-and-writes-walkthrough.md)**
-  — the consent / approval / write-tier flows end to end.
-- **[Feature specification](prm-feature-spec.md)** — what the PRM is, its features (`F#`) and
-  invariants (`INV#`), and the safe-AI-write model.
-- **[Roadmap](roadmap.md)** — versioned plan (v0.1 → v0.5+) and what each release adds.
-- **[v0.1 implementation plan](../plans/v0.1-implementation-plan.md)** — architecture, data model,
-  CLI design, milestones (the `§…` references in this guide point here).
-- **[Ingestor (`cli/`) README](../cli/README.md)** — the parse → normalize → identity pipeline and
-  the CLI command shape.
-- **[Source format validation status](reference/source_validation_status.md)** — which export
-  formats have been verified against real-world data.
-- **[Google People API schema](reference/google_people_schema.json)** — the reference contact data
-  model for Google.
-- **[Test fixtures](../tests/fixtures/README.md)** — the synthetic contact corpora the tool is
-  built and tested against (Google Takeout, Apple iCloud, LinkedIn, Facebook, Google CSV).
+- **Illustrated explainers**: **[How PRM's data works](explainers/how-prm-data-works.md)** ·
+  **[AI reads & writes — a visual walkthrough](explainers/ai-reads-and-writes-walkthrough.md)**
+- **[Feature specification](prm-feature-spec.md)** — features (`F#`), invariants (`INV#`), the
+  safe-AI-write model · **[Roadmap](roadmap.md)** — versioned plan ·
+  **[Architecture / conformance](Architecture.md)** — the PNT attestation
+- **[v0.1](../plans/v0.1-implementation-plan.md)** / **[v0.2](../plans/v0.2-implementation-plan.md)**
+  implementation plans · **[Ingestor README](../cli/README.md)** ·
+  **[MCP servers README](../mcp_servers/README.md)**
+- **[Source format validation status](reference/source_validation_status.md)** — which export formats
+  are verified against real-world data · **[Test fixtures](../tests/fixtures/README.md)** — the
+  synthetic corpora
+- The screenshots in this guide are captured **repeatably** against the synthetic demo by
+  [`scripts/capture_screenshots.py`](../scripts/capture_screenshots.py) — after a UI change, one
+  command refreshes them all.
 - **Open question:** [What "distribution" means for a PNA](https://github.com/richbodo/prm/issues/8)
-  — the build-from-source-and-verify trust model behind "before you start" above.
+  — the build-from-source-and-verify trust model behind this guide's setup steps.
