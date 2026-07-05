@@ -114,7 +114,7 @@ def test_stats_reports_counts():
     with tempfile.TemporaryDirectory() as tmp:
         db, _ = _load(tmp, _apple_contacts())
         s = shared_db.stats(db)
-        assert s["records"] == 4 and s["schema_version"] == 1 and s["last_ingested_at"] == AT
+        assert s["records"] == 4 and s["schema_version"] == shared_db.SCHEMA_VERSION and s["last_ingested_at"] == AT
 
 
 def test_empty_load_is_allowed():

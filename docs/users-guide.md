@@ -49,6 +49,7 @@ troubleshooting). Each part ends with an honest list of what it *can't* do yet.
 | **Find & merge duplicates** — one at a time or **bulk by group**, conflicts picked by you, one Undo | workspace | ✅ works |
 | **See a pending duplicate on the contact itself** — list marker, contact banner, in-group call-out → one click into that review | workspace | ✅ works |
 | Edit **multi-value fields** (a contact's several emails/phones) | workspace | ⏳ next |
+| **Import another application's data** — a fellows_local_db directory archive (`.db`), its embedded **ultimate-source provenance chain** preserved and shown on each contact | workspace + CLI | ✅ works |
 | **Re-import** an updated export with a change preview, merges preserved | CLI (`just reimport`) | ✅ works · workspace ⏳ next |
 | **Export** — portable vCard, or a lossless re-importable `--raw` backup | workspace + CLI | ✅ works |
 | **AI-assisted dedup** — an AI *proposes* merges over MCP; you approve each in the workspace | MCP + workspace | ✅ works |
@@ -187,9 +188,12 @@ The sidebar footer has the live stats, **⚙ Diagnostics** (`?diag` — a saniti
 
 **Contacts** is home base: search or browse the full list, open any contact, and see every field with
 its **provenance** — which source each value came from (`google`, `apple`, a `user` tag where you
-overrode it, `gathered` where you accepted an AI suggestion). Search is prefix-matched across name,
-email, organization, and notes, and also matches your private tags and custom values — locally only
-(an AI's search never touches sealed data).
+overrode it, `gathered` where you accepted an AI suggestion). When a source is itself second-hand —
+data imported from another application, like an EHF fellows directory archive — the contact header
+also shows its **ultimate origin**, read from provenance embedded in the imported file itself: *"EHF
+fellows — from EHF Fellows Directory (Knack), archived 2026-04-08"*. Search is prefix-matched across
+name, email, organization, and notes, and also matches your private tags and custom values — locally
+only (an AI's search never touches sealed data).
 
 Row markers tell you at a glance: `N×` (merged from N records), **🤖** (AI-gathered data waiting for
 your review), and `duplicate?` (a confident pending duplicate — see
@@ -300,7 +304,9 @@ matures in a later increment.)*
 
 **Data** is the point-and-click counterpart to `prm import` / `prm export`. **To import**, drag a file
 or folder onto the page — or **Choose file…** / **Choose folder…** — for any supported export (vCard,
-Takeout `.zip`, LinkedIn, Google CSV, Facebook, or a PRM `--raw` backup). PRM reads the files
+Takeout `.zip`, LinkedIn, Google CSV, Facebook, a PRM `--raw` backup, or a **fellows_local_db**
+directory archive `.db` — another PNA's shared database, imported with its embedded ultimate-source
+provenance chain preserved). PRM reads the files
 **locally**, shows the same preview the terminal does (contacts per file, detected source +
 confidence, the stable-id breakdown), and saves **only after you confirm**. A low-confidence source
 can be relabeled before importing; unrecognized files are listed as **skipped**, never silently

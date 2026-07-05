@@ -74,6 +74,10 @@ def _get(path: str, query: dict, home: PrmHome, network_exposed: bool = False) -
         if not db.exists():
             return _json(200, {"shared_db": False, "home": str(home.root), "build_label": label})
         out = {"shared_db": True, "home": str(home.root), "build_label": label, **shared_db.stats(db)}
+        # Ultimate-source provenance chains for second-hand sources (e.g. a
+        # fellows_local_db import) — lets the workspace say "from EHF Fellows
+        # Directory (Knack), archived 2026-04-08", not just the source label.
+        out["source_chains"] = shared_db.all_source_chains(db)
         if home.relationships_db.exists():
             p = relationships_db.stats(home.relationships_db)
             out["contacts"] = p["contacts"]              # canonical (post-merge) count

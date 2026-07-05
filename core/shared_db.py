@@ -23,7 +23,7 @@ from dataclasses import dataclass
 from datetime import datetime, timezone
 from pathlib import Path
 
-SCHEMA_VERSION = 1
+SCHEMA_VERSION = 2
 _SCHEMA_SQL = (Path(__file__).resolve().parent / "schema" / "shared.sql").read_text(encoding="utf-8")
 
 
@@ -63,7 +63,10 @@ def connect(db_path, *, read_only: bool = False) -> sqlite3.Connection:
 
 def _ensure_schema(con: sqlite3.Connection) -> None:
     version = con.execute("PRAGMA user_version").fetchone()[0]
-    if version == 0:
+    if version in (0, 1):
+        # v1 -> v2 is purely additive (the source_chains table); every statement
+        # in the schema file is IF NOT EXISTS, so re-running it upgrades a v1 db
+        # in place without touching existing rows.
         con.executescript(_SCHEMA_SQL)
         con.execute(f"PRAGMA user_version = {SCHEMA_VERSION}")
         con.commit()
@@ -138,6 +141,68 @@ def load(db_path, records, *, ingested_at: str | None = None) -> LoadResult:
     finally:
         con.close()
     return LoadResult(parsed=len(records), total=total, by_source=by_source)
+
+
+_CHAIN_COLS = ("hop", "system", "artifact", "artifact_sha256", "acquired_at", "method", "note")
+
+
+def record_source_chain(db_path, source: str, hops: list) -> None:
+    """Replace the provenance chain for one source. ``hops`` is a list of dicts
+    with the ``_CHAIN_COLS`` keys (hop 0 = ultimate source; the ingester appends
+    PRM's own hop last — see cli/ingest.py). Writer-side only, same INV-2 rule
+    as the rest of this module: only the ingester calls it, at import time.
+    Idempotent like the record upsert — a re-import replaces the chain."""
+    con = connect(db_path)
+    try:
+        _ensure_schema(con)
+        cur = con.cursor()
+        cur.execute("DELETE FROM source_chains WHERE source = ?", (source,))
+        for h in hops:
+            cur.execute(
+                "INSERT INTO source_chains(source, hop, system, artifact, artifact_sha256, "
+                "acquired_at, method, note) VALUES (?, ?, ?, ?, ?, ?, ?, ?)",
+                (source, *[h.get(c) for c in _CHAIN_COLS]),
+            )
+        con.commit()
+    finally:
+        con.close()
+
+
+def source_chain(db_path, source: str) -> list[dict]:
+    """The provenance chain for one source, hop-ordered; [] when the source has
+    none (a first-party export) or the db predates schema v2."""
+    con = connect(db_path, read_only=True)
+    try:
+        try:
+            rows = con.execute(
+                f"SELECT {', '.join(_CHAIN_COLS)} FROM source_chains "
+                "WHERE source = ? ORDER BY hop", (source,),
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return []
+    finally:
+        con.close()
+    return [dict(zip(_CHAIN_COLS, r)) for r in rows]
+
+
+def all_source_chains(db_path) -> dict:
+    """{source: [hops]} for every source that carries a chain. Read-only;
+    tolerates a pre-v2 db ({})."""
+    con = connect(db_path, read_only=True)
+    try:
+        try:
+            rows = con.execute(
+                f"SELECT source, {', '.join(_CHAIN_COLS)} FROM source_chains "
+                "ORDER BY source, hop"
+            ).fetchall()
+        except sqlite3.OperationalError:
+            return {}
+    finally:
+        con.close()
+    out: dict = {}
+    for row in rows:
+        out.setdefault(row[0], []).append(dict(zip(_CHAIN_COLS, row[1:])))
+    return out
 
 
 # --------------------------------------------------------------------------- read

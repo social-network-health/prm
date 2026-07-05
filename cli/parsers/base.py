@@ -19,6 +19,7 @@ class SourceFormat(enum.Enum):
     VENDOR_CSV = "csv"          # a vendor CSV (LinkedIn, Google CSV), incl. a LinkedIn export zip
     FACEBOOK_JSON = "facebook"  # a Facebook DYI friends .json, or an export .zip containing one
     PRM_BACKUP = "prm_backup"   # PRM's own lossless raw-records backup .json (re-importable)
+    FELLOWS_DB = "fellows_db"   # a fellows_local_db shared SQLite DB (another PNA's mirror)
     UNKNOWN = "unknown"
 
 
@@ -70,6 +71,23 @@ def detect_format(path: str | Path) -> SourceFormat:
             return SourceFormat.PRM_BACKUP
         if b'"friends' in head:          # "friends" or "friends_v2"
             return SourceFormat.FACEBOOK_JSON
+        return SourceFormat.UNKNOWN
+    if suffix in (".db", ".sqlite", ".sqlite3"):
+        # A fellows_local_db shared DB (SQLite magic + a `fellows` table). The
+        # table sniff keeps a random SQLite file from being claimed.
+        if p.read_bytes()[:16] == b"SQLite format 3\x00":
+            import sqlite3
+            try:
+                con = sqlite3.connect(f"file:{p}?mode=ro", uri=True)
+                try:
+                    names = {r[0] for r in con.execute(
+                        "SELECT name FROM sqlite_master WHERE type = 'table'")}
+                finally:
+                    con.close()
+            except sqlite3.Error:
+                return SourceFormat.UNKNOWN
+            if "fellows" in names:
+                return SourceFormat.FELLOWS_DB
         return SourceFormat.UNKNOWN
     if suffix == ".zip" and zipfile.is_zipfile(p):
         with zipfile.ZipFile(p) as zf:

@@ -26,6 +26,27 @@ CREATE TABLE IF NOT EXISTS field_provenance (
 );
 CREATE INDEX IF NOT EXISTS idx_field_provenance_rec ON field_provenance(source_record_id);
 
+-- Per-source provenance CHAIN (schema v2): where a whole source's dataset ultimately came from,
+-- when the source is itself second-hand (another PNA's export, an archive of a dead SaaS). Mirrors
+-- the in-band `provenance` table shape the fellows_local_db reference design embeds in its shared
+-- DB (proposed PNT sub-contract SH-7): hop 0 = the ultimate source; each importer along the way
+-- appends its own hop and never rewrites upstream ones — PRM's own import hop is appended last at
+-- ingest time. Entries are attested claims by the app that wrote them, not proofs; artifact_sha256
+-- gives per-hop artifact integrity (PRM computes the consumed file's hash at ingest). First-party
+-- exports (Google/Apple/LinkedIn/Facebook) carry no chain — absence means "first hop is the source
+-- label itself".
+CREATE TABLE IF NOT EXISTS source_chains (
+    source          TEXT NOT NULL,       -- joins source_records.source
+    hop             INTEGER NOT NULL,    -- 0 = ultimate source
+    system          TEXT NOT NULL,       -- e.g. 'EHF Fellows Directory (Knack)'
+    artifact        TEXT,                -- e.g. 'knack_api_detail_dump.json' / 'fellows.db'
+    artifact_sha256 TEXT,
+    acquired_at     TEXT,                -- source-vintage date (or PRM's ingest time for its own hop)
+    method          TEXT,                -- e.g. 'Knack REST API extraction' / 'prm cli/ingest.py'
+    note            TEXT,
+    PRIMARY KEY (source, hop)
+);
+
 -- Full-text search over the searchable surface (FTS5). Standalone (not external-content): the
 -- loader keeps it in sync explicitly. source_record_id is carried UNINDEXED to join back.
 CREATE VIRTUAL TABLE IF NOT EXISTS contacts_fts USING fts5(
