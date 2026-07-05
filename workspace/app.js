@@ -19,7 +19,19 @@ let browseOffset = 0;
 const SOURCE_LABEL = {
   apple_icloud: "apple", google_takeout: "google", google_csv: "google csv",
   linkedin: "linkedin", facebook: "facebook", vcard: "vcard",
+  fellows_local_db: "EHF fellows",
 };
+// Ultimate-source provenance chains per source label ({source: [hops]}, hop 0 = the ultimate
+// source). Refreshed with /api/status; empty for first-party exports. Lets the detail view say
+// WHERE a second-hand source's data originally came from, not just its label.
+let SOURCE_CHAINS = {};
+function sourceOriginLine(s) {
+  const chain = SOURCE_CHAINS[s];
+  if (!chain || !chain.length) return "";
+  const hop0 = chain[0];
+  if (!hop0.system || hop0.system === s) return "";
+  return `${srcLabel(s)} — from ${hop0.system}${hop0.acquired_at ? `, archived ${hop0.acquired_at}` : ""}`;
+}
 // An `ai:<session>` provenance (a promoted gathered observation, R11c) shows as "gathered", not the raw
 // session id, so a folded value reads honestly without leaking the session string.
 const srcLabel = (s) => (typeof s === "string" && s.startsWith("ai:")) ? "gathered" : (SOURCE_LABEL[s] || s || "");
@@ -117,10 +129,17 @@ async function showContact(id) {              // the renderer behind #/contacts/
 function dHead(c, editing) {
   const srcChips = (c.sources || []).map((s) => `<span class="chip dot">${esc(srcLabel(s))}</span>`).join("");
   const n = c.member_count || (c.sources || []).length || 1;
+  // Second-hand sources carry an ultimate-source provenance chain — say where
+  // the data ORIGINALLY came from ("EHF fellows — from EHF Fellows Directory
+  // (Knack), archived 2026-04-08"), not just the importing source's label.
+  const origins = (c.sources || []).map(sourceOriginLine).filter(Boolean);
+  const originHtml = origins.length
+    ? `<div class="dmeta dorigin">${origins.map(esc).join(" · ")}</div>` : "";
   const btn = editing ? "" : `<button class="btn ghost" id="edit-contact" title="Edit this contact">✎ Edit</button>`;
   return `<div class="dhead">${avatarHTML(c.id, c.fn, c.photo && c.photo.present, editing ? Date.now() : 0)}<div class="dhbody">` +
     `<h2 class="serif">${esc(c.fn || "(no name)")}</h2>` +
     `<div class="dmeta">${srcChips}<span>·</span><span>${n > 1 ? `merged from ${n} records` : "1 source record"}</span></div>` +
+    originHtml +
     `</div>${btn}</div>`;
 }
 
@@ -1611,6 +1630,7 @@ function emptyState(msg) {
 async function refreshStats() {
   const s = await api("/api/status");
   if (els.statBuild) els.statBuild.textContent = s.build_label || "—";   // AC-15: shown even before any import
+  SOURCE_CHAINS = s.source_chains || {};      // ultimate-source origins for the detail view
   if (!s.shared_db) return false;
   const contacts = s.contacts != null ? s.contacts : (s.records || 0);    // canonical (post-merge) count
   const sources = Object.keys(s.by_source || {}).length;

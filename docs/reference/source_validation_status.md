@@ -16,6 +16,7 @@ is the record of what each fixture's fidelity actually rests on.
 | **LinkedIn** | vendor CSV (`Connections.csv` in a zip) | [`linkedin/`](../../tests/fixtures/linkedin/) | ✅ Basic + Complete exports (1,174 connections) | ✅ **2026-06-04** (parsed end-to-end) |
 | **Google CSV** | legacy *Export → Google CSV* | [`google_csv/`](../../tests/fixtures/google_csv/) | ❌ none | ❌ built from docs |
 | **Facebook** | DYI `friends.json` (name + timestamp) | [`facebook/`](../../tests/fixtures/facebook/) | ❌ none | ⚠️ parser built; not real-validated |
+| **fellows_local_db** | SQLite shared DB (`fellows` + in-band `provenance` tables) | generated in-test ([`test_fellows_db_import.py`](../../tests/unit/test_fellows_db_import.py) `_make_fellows_db` — the real file is private data, never committed) | ❌ none on this machine | ⚠️ built from the sibling reference design's shared-DB schema contract (`fellows_local_db/docs/Architecture.md` § Shared DB schema); real-export validation pending a machine with a built `fellows.db` |
 | **Outlook CSV** | vendor CSV | — not built | ❌ none | ⏳ not started |
 
 Out of scope for v0.1 (no fixture needed): CardDAV live mirror, Google People API connector — file
