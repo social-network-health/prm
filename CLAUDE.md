@@ -14,7 +14,7 @@ PRM is a **reference design** for the [Personal Network Toolkit](https://github.
 [`plans/v0.1-implementation-plan.md`](plans/v0.1-implementation-plan.md) (how v0.1 is built).
 Install with `pip install -e ".[dev]"` and run `pytest` before pushing.
 
-<!-- BEGIN SHARED: org-conventions v2 -->
+<!-- BEGIN SHARED: org-conventions v3 -->
 <!-- Canonical copy: social-network-health/docs/shared/org-conventions.md
      Do not edit this block in place. Edit the canonical copy and propagate. -->
 
@@ -77,8 +77,18 @@ Each of these was learned the hard way in one repo. They apply in all of them.
   change — in a multi-worktree setup `main` is often checked out elsewhere, so a checkout
   fails or strands uncommitted work. Run `git worktree list` before starting. Repo-specific
   worktree setup and port serialization live in that repo's own sections.
+- **A sync rule without a mechanical check is a wish.** Anything that must hold in more than
+  one repo ships with a command that verifies it, and the rule names the command. Nobody
+  eyeballs eight repos, so silent drift is the default outcome otherwise.
 
-<!-- END SHARED: org-conventions v2 -->
+## Changing this block
+
+This block is generated. To change it: edit the canonical copy, bump the version in both
+markers, run `just sync-conventions` from the hub repo, then open one PR per repo.
+`just check-conventions` verifies every copy matches; `just check-org` runs every org check.
+Full procedure: hub `docs/org-upkeep.md`.
+
+<!-- END SHARED: org-conventions v3 -->
 
 ## Upstream and the other reference design
 
