@@ -2,7 +2,7 @@
 
 *Status: **draft for triage** (2026-06-25). Companion to
 [`ex-cloud-llm-workspace-handler.md`](ex-cloud-llm-workspace-handler.md) (the EX-CLOUD-LLM handler this
-extends), [prm#65](https://github.com/richbodo/prm/issues/65) (server build-label / staleness). Born from
+extends), [prm#65](https://github.com/social-network-health/prm/issues/65) (server build-label / staleness). Born from
 live P4 QA on 2026-06-25, where a sticky approval + a stale-server red herring made it impossible to tell,
 from the UI alone, **what access an external system actually had and whether it had been used.***
 
@@ -37,7 +37,7 @@ to the approval grain — a stronger upstream demonstrator.)
 position — but the practical goals you actually want (know a granted read **occurred**, and **shut the
 spigot** after a one-time read) don't require it. They're answerable because **we serve the read ourselves.**
 That single fact is what makes Phases 1–2 tractable and pushes "who/what consumed it" into a research issue
-(**[#67](https://github.com/richbodo/prm/issues/67)**) — which reframes usefully: we can't ID the *LLM*, but
+(**[#67](https://github.com/social-network-health/prm/issues/67)**) — which reframes usefully: we can't ID the *LLM*, but
 identifying the *client app* + emitting structured access events gives the user (who owns the host) the
 **PRM-side half of egress monitoring** — correlate "data left to client Y" with host network telemetry
 (OpenTelemetry / eBPF).
@@ -121,9 +121,9 @@ natural companion to *showing* the exceptions.
 | **Read-decision logging** (+ build) | Yes (we serve reads) | S | **Now** — Phase 1 |
 | **Current Access Exceptions list + collapsible UI** | Yes | M | **Now** — Phase 2 |
 | **Detect a granted read was *executed*** | Yes (the log *is* this) | — | **Now** — falls out of Phase 1 |
-| **One-time vs sticky approval modes** (keep *both*) | Yes (serve → log → auto-revoke) | M | **Later → [#66](https://github.com/richbodo/prm/issues/66).** Not mid-test; Phase-1 log makes it cheap. Per-grant choice at approve time: *approve once* vs *approve for this session.* |
+| **One-time vs sticky approval modes** (keep *both*) | Yes (serve → log → auto-revoke) | M | **Later → [#66](https://github.com/social-network-health/prm/issues/66).** Not mid-test; Phase-1 log makes it cheap. Per-grant choice at approve time: *approve once* vs *approve for this session.* |
 | **Per-item Revoke control** | Yes | S | **In Phase 2 (§3e)** — pure visibility+control, doesn't change *granularity*; complements the all-clearing "Return to PNA". |
-| **Identify the _client_** (not the consumer LLM) → **egress monitoring** | Client: **yes** (parent-process + `clientInfo`); LLM: **no** | — | **Research → [#67](https://github.com/richbodo/prm/issues/67).** Identify the client + emit structured access events → the user (owns the host) correlates with host egress telemetry (OTel / eBPF). The PRM-side half of egress monitoring. |
+| **Identify the _client_** (not the consumer LLM) → **egress monitoring** | Client: **yes** (parent-process + `clientInfo`); LLM: **no** | — | **Research → [#67](https://github.com/social-network-health/prm/issues/67).** Identify the client + emit structured access events → the user (owns the host) correlates with host egress telemetry (OTel / eBPF). The PRM-side half of egress monitoring. |
 | **What the consumer does off-box** | **No** | — | **Document** as a standing limit (already EX-H "data already sent = none"). |
 
 ## 5. Sequencing vs testing & upstream
@@ -139,9 +139,9 @@ natural companion to *showing* the exceptions.
 - **Per-item Revoke** → **in Phase 2** (§3e).
 - **Section dividers** → **yes** — "Baseline" / "Exceptions" headers (§3b).
 - **Access-log retention** → **rotate/cap like the snapshot ring** (§2).
-- **One-time vs sticky modes** → **later**, keep both — tracked in **[#66](https://github.com/richbodo/prm/issues/66)**.
+- **One-time vs sticky modes** → **later**, keep both — tracked in **[#66](https://github.com/social-network-health/prm/issues/66)**.
 - **Client identity / egress** → reframed from "identify the consumer" to "identify the *client* + feed host
-  egress monitoring" — tracked in **[#67](https://github.com/richbodo/prm/issues/67)** (research/follow-on).
+  egress monitoring" — tracked in **[#67](https://github.com/social-network-health/prm/issues/67)** (research/follow-on).
 
 With these resolved, **Phases 1–2 are ready to build**; the deferred items live in #66 / #67.
 ```

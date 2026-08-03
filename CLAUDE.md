@@ -4,7 +4,7 @@ Personal Relationship Manager (PRM) — a **local-only** Personal Network Applic
 a person's contacts from everywhere they're scattered (Google, Apple, LinkedIn, Facebook, loose
 `.vcf`/`.csv`) into one local store they own, lets them keep private relationship data on top, and
 lets an AI read and help maintain that data on their behalf. **Contact data never leaves the device.**
-PRM is a **reference design** for the [Personal Network Toolkit](https://github.com/richbodo/personal_network_toolkit)
+PRM is a **reference design** for the [Personal Network Toolkit](https://github.com/social-network-health/personal_network_toolkit)
 (PNT, the sibling spec repo); this is an **application**, not a spec.
 
 **Read in this order:** [`README.md`](README.md) →
@@ -14,14 +14,92 @@ PRM is a **reference design** for the [Personal Network Toolkit](https://github.
 [`plans/v0.1-implementation-plan.md`](plans/v0.1-implementation-plan.md) (how v0.1 is built).
 Install with `pip install -e ".[dev]"` and run `pytest` before pushing.
 
-## Sibling repositories (cross-repo work)
+<!-- BEGIN SHARED: org-conventions v3 -->
+<!-- Canonical copy: social-network-health/docs/shared/org-conventions.md
+     Do not edit this block in place. Edit the canonical copy and propagate. -->
 
-The PNA Toolkit spec repo and the other reference design are separate Git repos checked out as **siblings of this one**, one directory above the repo root:
+## The organization
 
-- `../personal_network_toolkit` — the PNA Toolkit (PNT): the universal spec, contracts, and lints this design attests conformance to. Its `origin/main` is the source of truth for upstream work.
-- `../fellows_local_db` — the first reference design (Directory Archive), for cross-design comparison.
+Eight repos under the **[social-network-health](https://github.com/social-network-health)**
+GitHub org. A developer normally has them **all checked out side by side in one parent
+directory**, so from any repo root every other repo is at `../<name>`. Write cross-repo paths
+relative to the repo root, never absolute — the parent directory differs per host.
 
-A change here can have cross-repo implications for PNT (a conformance or contract change); when in doubt, read PNT's `spec/`. This sibling layout is a stable convention of the working environment (it could change, but holds for now). It lives in CLAUDE.md — not in agent memory — because memory is keyed to the working directory, so a worktree at a different path starts with a fresh memory dir; a committed file is the only channel that reaches every worktree and every concurrent agent.
+**[`RELATED_REPOS.md`](https://github.com/social-network-health/social-network-health/blob/main/RELATED_REPOS.md)**
+in the hub repo is the single source of truth for what those repos are and what each is for.
+Don't restate the list in a repo's own docs — a second copy is a second thing to forget.
+
+The layout is a convention of the working environment; it could change, but it holds for now.
+It lives in `CLAUDE.md` rather than agent memory because **memory is keyed to the working
+directory** — a worktree at a different path starts with a fresh memory dir. A committed file
+is the only channel that reaches every worktree and every concurrent agent.
+
+## Planning has four layers
+
+| # | Question | Lives in |
+|---|---|---|
+| 1 | "What is the software program?" | hub [`plan.md`](https://github.com/social-network-health/social-network-health/blob/main/plan.md) — the M1/M2/M3 summary |
+| 2 | "What should the org be doing?" | hub [`plans/`](https://github.com/social-network-health/social-network-health/tree/main/plans) + `plans/ORG-TASKS.md` |
+| 3 | "Where is this repo headed?" | **this repo's** `docs/roadmap.md` |
+| 4 | "What's in flight?" | **this repo's** GitHub issues and active branches |
+
+Record a thought at the layer matching its scope.
+
+**Layer 2 is org-only.** Work actionable inside one existing repo belongs in that repo;
+`ORG-TASKS.md` links down to it rather than restating its status. **Layer 1 is narrower than
+the organization** — `plan.md` summarizes the software and research program, not community
+building, the toolkit wiki, or educational materials.
+
+Dated files under `plans/` are append-only thinking artifacts. Never update one; write a new
+one. `ORG-TASKS.md` is the sole exception — it is kept current.
+
+## Cross-repo working rules
+
+Each of these was learned the hard way in one repo. They apply in all of them.
+
+- **PR and issue bodies via `--body-file`, never an inline `--body`.** Backticks and `$(…)`
+  get shell-interpreted and silently drop content — a commit hash has been lost this way.
+- **After a PR merges, verify every intended commit actually landed.** A dropped commit is
+  silent; recover it in a follow-up rather than assuming the merge was faithful.
+- **Triage every test failure as pre-existing or newly-introduced before shipping.** Stash
+  and re-run against the base to tell which. Never absorb a pre-existing red into unrelated
+  work, and never claim green while a known red stands.
+- **Upstream `main` beats local staging plans.** In a multi-agent setup another agent may
+  have already filed, merged, or evolved a cross-repo contribution. Check the upstream repo's
+  `main` before developing one further — local `plans/` lag.
+- **Fail loudly.** Convert an absent guarantee into a red test or a lint failure, never a
+  silent pass. Deferrals carry an honest status marker — a strict-xfail, an `Open`/`partial`
+  attestation, a documented "⏳ next" — never a bare `TODO` claiming a property the code
+  doesn't deliver.
+- **One source of truth per fact.** Restating a fact in a second document creates a drift
+  surface. Put it in the doc that owns the category and link from the others.
+- **Orient without moving; branch only to work.** Reading and priming never need a branch
+  change — in a multi-worktree setup `main` is often checked out elsewhere, so a checkout
+  fails or strands uncommitted work. Run `git worktree list` before starting. Repo-specific
+  worktree setup and port serialization live in that repo's own sections.
+- **A sync rule without a mechanical check is a wish.** Anything that must hold in more than
+  one repo ships with a command that verifies it, and the rule names the command. Nobody
+  eyeballs eight repos, so silent drift is the default outcome otherwise.
+
+## Changing this block
+
+This block is generated. To change it: edit the canonical copy, bump the version in both
+markers, run `just sync-conventions` from the hub repo, then open one PR per repo.
+`just check-conventions` verifies every copy matches; `just check-org` runs every org check.
+Full procedure: hub `docs/org-upkeep.md`.
+
+<!-- END SHARED: org-conventions v3 -->
+
+## Upstream and the other reference design
+
+- `../personal_network_toolkit` — the PNA Toolkit (PNT): the universal spec, contracts, and
+  lints this design attests conformance to. Its `origin/main` is the source of truth for
+  upstream work.
+- `../fellows_local_db` — the first reference design (Directory Archive), for cross-design
+  comparison.
+
+A change here can have cross-repo implications for PNT (a conformance or contract change);
+when in doubt, read PNT's `spec/`.
 
 ## Keep the docs current
 
@@ -64,7 +142,7 @@ When you add a fact, put it in the doc that owns its category and link from the 
   like Claude Desktop — and only when handled to PNT's exception contract: explicit consent *before* the
   raise, a persistent "not a PNA right now" signal while active, and a reversible return-to-PNA-mode path
   (mode only — it cannot recall data already sent). See PNT
-  [`spec/exceptions.md`](https://github.com/richbodo/personal_network_toolkit/blob/main/spec/exceptions.md)
+  [`spec/exceptions.md`](https://github.com/social-network-health/personal_network_toolkit/blob/main/spec/exceptions.md)
   (`EX-CLOUD-LLM`, handler clauses EX-H1–H8). **An MCP server cannot detect or restrict which LLM consumes
   its output** — `clientInfo` is self-reported and app-level, and MCP's OAuth runs client→server — so the
   boundary is held by consent + honest signaling, *never* by trying to identify the client. Any *other*

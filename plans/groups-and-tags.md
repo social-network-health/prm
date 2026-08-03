@@ -21,8 +21,8 @@ work. Three things pull them forward:
 - PNT's **PR-1** private-schema contract mandates `groups` + `group_members` tables, and the canonical
   **`private-data-ops`** MCP contract is groups-centric (`list_groups` / `find_group` /
   `get_group_members`) — PRM is the second reference design and this is the missing demonstrator-parity
-  piece ([`../../personal_network_toolkit/contracts/private-db.schema.sql`](https://github.com/richbodo/personal_network_toolkit/blob/main/contracts/private-db.schema.sql),
-  [`mcp-private-data-ops.schema.json`](https://github.com/richbodo/personal_network_toolkit/blob/main/contracts/mcp-private-data-ops.schema.json)).
+  piece ([`../../personal_network_toolkit/contracts/private-db.schema.sql`](https://github.com/social-network-health/personal_network_toolkit/blob/main/contracts/private-db.schema.sql),
+  [`mcp-private-data-ops.schema.json`](https://github.com/social-network-health/personal_network_toolkit/blob/main/contracts/mcp-private-data-ops.schema.json)).
 - The workspace sidebar has stubbed a Groups nav item since the v0.1 shell landed.
 
 ## 2. Decisions (confirmed 2026-07-04)

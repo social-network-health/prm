@@ -7,7 +7,7 @@ disclosure review, §6f) remains the planned fast-follow. Companion to
 [`mcp-ex-h7-consent-handshake.md`](mcp-ex-h7-consent-handshake.md) (the v0.1 server-side down-payment this
 builds on), [`../docs/roadmap.md`](../docs/roadmap.md) (v0.2 `EX-CLOUD-LLM` + data-floor), and the
 upstream contract in PNT (`spec/exceptions.md`, `spec/PNA_Spec.md`,
-`docs/design-notes/2026-06-data-floor-disclosure-tiers.md`). Tracks [prm#36](https://github.com/richbodo/prm/issues/36).*
+`docs/design-notes/2026-06-data-floor-disclosure-tiers.md`). Tracks [prm#36](https://github.com/social-network-health/prm/issues/36).*
 
 ## 1. The gap
 

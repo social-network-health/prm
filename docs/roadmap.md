@@ -74,7 +74,7 @@ sealed field at the query layer, even with consent — and **consent-gated** (a 
 after explicit workspace consent; fail-closed by default). So the most sensitive notes are never reachable
 by a cloud client like Claude Desktop, and a defeated consent gate leaks only the user-curated shareable
 projection, not the whole store. This realizes PNT's proposed **`AC-MCP-C` / `PR-7` / `EX-H9`** data-floor
-([PNT PR #34](https://github.com/richbodo/personal_network_toolkit/pull/34)), which lands *with* this
+([PNT PR #34](https://github.com/social-network-health/personal_network_toolkit/pull/34)), which lands *with* this
 design — candidate **AC-PRM-G**.
 
 ## v0.3 — Delegated gathering: public data (easiest first)
@@ -139,7 +139,7 @@ This reference design is expected to feed the toolkit. As each lands with its de
 - **`AC-MCP-C` / `PR-7` / `EX-H9` data-floor (candidate `AC-PRM-G`)** — the per-field disclosure tier
   + projection-bound, consent-gated cloud surface that bounds *what* a cloud LLM can read. **Shipped and
   demonstrated** (`core/disclosure.py`, the query-layer floor, the workspace handler); PRM is the proposed
-  demonstrator for PNT's data-floor proposal ([PNT PR #34](https://github.com/richbodo/personal_network_toolkit/pull/34)),
+  demonstrator for PNT's data-floor proposal ([PNT PR #34](https://github.com/social-network-health/personal_network_toolkit/pull/34)),
   ready to graduate from stub to spec.
 - **AC-PRM-C** (single-instance file-lock) — exercised by the native-SQLite storage pick.
 - Privacy-reclassification mechanics and per-field provenance findings as they surface.
@@ -152,8 +152,8 @@ This reference design is expected to feed the toolkit. As each lands with its de
   *independent verifiability* — the build-from-source-and-run-conformance-tests path (this PRM today:
   a "home-cooked meal" a friend builds and verifies) is qualitatively different from an opaque binary.
   This likely warrants splitting the distribution axis in PNT. **Proposed upstream as a discussion RFC
-  — [personal_network_toolkit#39](https://github.com/richbodo/personal_network_toolkit/issues/39)
-  (tracks PRM [#8](https://github.com/richbodo/prm/issues/8)); not yet a spec change** (per
+  — [personal_network_toolkit#39](https://github.com/social-network-health/personal_network_toolkit/issues/39)
+  (tracks PRM [#8](https://github.com/social-network-health/prm/issues/8)); not yet a spec change** (per
   CONTRIBUTING, an obligation-changing axis split lands with its demonstrating design — PRM is the
   candidate demonstrator, gated on the deferred installer).
 - SWHID archival + `Architecture.md` attestation once a version is accepted.

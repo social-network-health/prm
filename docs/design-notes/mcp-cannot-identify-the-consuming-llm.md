@@ -33,7 +33,7 @@ leave the device?* — is invisible at the protocol boundary.
 ## Decision: handle it honestly with a consented, reversible exception — not detection.
 
 PRM adopts PNT's **`EX-CLOUD-LLM`** exception
-([`spec/exceptions.md`](https://github.com/richbodo/personal_network_toolkit/blob/main/spec/exceptions.md)),
+([`spec/exceptions.md`](https://github.com/social-network-health/personal_network_toolkit/blob/main/spec/exceptions.md)),
 the mechanism the `fellows_local_db` reference design pioneered for the same problem with its ~500
 users. Connecting a cloud MCP client doesn't *silently violate* local-only; it **raises a named
 exception** the app catches and handles:
@@ -81,7 +81,7 @@ sent" is `none`.
 
 ## Sources
 
-- PNT [`spec/exceptions.md`](https://github.com/richbodo/personal_network_toolkit/blob/main/spec/exceptions.md)
+- PNT [`spec/exceptions.md`](https://github.com/social-network-health/personal_network_toolkit/blob/main/spec/exceptions.md)
   — `EX-CLOUD-LLM`, handler clauses EX-H1–H8, strength profiles.
 - `fellows_local_db`: `docs/use_with_claude_desktop.md` (the shipped consent flow), `docs/never-saas.md`,
   `docs/local_vs_saas_risk.md`.

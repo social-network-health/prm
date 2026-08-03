@@ -8,7 +8,7 @@ an AI help maintain it under controls you hold. Your data never leaves your devi
 > **Status (v0.2).** Everything in v0.1 — import from all five sources, search, the web workspace,
 > find-&-merge dedup (individual and bulk), AI-*proposed* merges over MCP, non-destructive re-import,
 > and export (portable vCard + lossless backup) — is done, attested against the
-> [Personal Network Toolkit](https://github.com/richbodo/personal_network_toolkit) in
+> [Personal Network Toolkit](https://github.com/social-network-health/personal_network_toolkit) in
 > [`Architecture.md`](Architecture.md). Most of v0.2 has landed too: contact editing, notes, tags (with
 > a managed vocabulary and a browse view), **groups**, photos (imported, uploaded, or matched from a
 > folder), a user-designed **custom schema**, workspace import/export, the desktop app and installer,
@@ -80,7 +80,7 @@ before you trust it with your contacts.
 ### 1. Get the code and set up
 
 ```bash
-git clone https://github.com/richbodo/prm.git
+git clone https://github.com/social-network-health/prm.git
 cd prm
 just setup            # creates ./.venv and installs prm + vobjectx + pytest (editable)
 ```
@@ -559,5 +559,5 @@ a group you choose, filing everything as reviewable observations.
 - The screenshots in this guide are captured **repeatably** against the synthetic demo by
   [`scripts/capture_screenshots.py`](../scripts/capture_screenshots.py) — after a UI change, one
   command refreshes them all.
-- **Open question:** [What "distribution" means for a PNA](https://github.com/richbodo/prm/issues/8)
+- **Open question:** [What "distribution" means for a PNA](https://github.com/social-network-health/prm/issues/8)
   — the build-from-source-and-verify trust model behind this guide's setup steps.
