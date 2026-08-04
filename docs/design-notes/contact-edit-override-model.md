@@ -2,7 +2,7 @@
 
 *Design note · contact CRUD / edit mode · drafted 2026-06-15. Status: accepted — scopes v0.2 contact
 **edit mode** (the user-facing CRUD surface) and the `relationships.db` rename. Decision record:
-[`../../brainstorms/2026-06-15-prm-v0.2-relationships-schema.md`](../../brainstorms/2026-06-15-prm-v0.2-relationships-schema.md);
+`snh-private/brainstorms/prm/2026-06-15-prm-v0.2-relationships-schema.md` (org private repo);
 build mechanics: [`../../plans/v0.2-implementation-plan.md`](../../plans/v0.2-implementation-plan.md).
 Extends the "Relationship to CRUD" section of [`dedupe-design.md`](dedupe-design.md) from dedupe
 reconciliation to a first-class edit feature.*

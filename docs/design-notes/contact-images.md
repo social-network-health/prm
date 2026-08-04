@@ -3,7 +3,7 @@
 *Design note · contact images / avatars · drafted 2026-06-16. Status: accepted. v0.2 **R7** (the
 per-contact upload slice) shipped; this note is also the **decision of record for the image *storage
 model*** (Option B, below) and the Takeout / guided-import follow-ups. Decision record:
-[`../../brainstorms/2026-06-15-prm-v0.2-relationships-schema.md`](../../brainstorms/2026-06-15-prm-v0.2-relationships-schema.md);
+`snh-private/brainstorms/prm/2026-06-15-prm-v0.2-relationships-schema.md` (org private repo);
 build mechanics: [`../../plans/v0.2-implementation-plan.md`](../../plans/v0.2-implementation-plan.md) §4.
 Sibling of [`contact-edit-override-model.md`](contact-edit-override-model.md) — the avatar is one more
 private overlay layered over the immutable mirror.*
