@@ -7,7 +7,7 @@ forced it, the alternatives considered, and **what would change the decision**. 
 append-mostly: when a decision is revisited, supersede the note (a dated update or a successor link)
 rather than silently rewriting history.
 
-This is the doc category that *owns design rationale* — see [`../../CLAUDE.md`](../../CLAUDE.md),
+This is the doc category that *owns design rationale* — see [`../../AGENTS.md`](../../AGENTS.md),
 "Documentation map".
 
 ## LLMs & MCP
