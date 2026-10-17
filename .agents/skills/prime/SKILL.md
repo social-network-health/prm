@@ -1,6 +1,11 @@
+---
+name: prime
+description: Orient a new session in prm — read its reading list for a systems-level picture, then summarize. Read-only. Use when the user asks to prime or orient.
+---
+
 # Prime — prm
 > Read-only orientation: understand the system, then summarize. Do NOT switch branches,
-> pull, or create a worktree while priming — just orient. (CLAUDE.md § Conventions owns
+> pull, or create a worktree while priming — just orient. (AGENTS.md § Conventions owns
 > branching and worktrees.)
 
 ## Run

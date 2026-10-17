@@ -9,7 +9,7 @@ guide's images to ``docs/img/users-guide/``. After any UI change, re-run it and 
     .venv/bin/pip install playwright && .venv/bin/playwright install chromium   # one-time, dev-only
     .venv/bin/python scripts/capture_screenshots.py
 
-Playwright is deliberately NOT a project dependency (runtime deps stay tiny — CLAUDE.md); it is a
+Playwright is deliberately NOT a project dependency (runtime deps stay tiny — AGENTS.md); it is a
 dev-machine tool like a linter. The script never touches your PRM home: it builds its own under a
 temp directory and serves on port 8788 (``--port`` to change; your normal 8770 server can keep running).
 """
